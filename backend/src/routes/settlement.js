@@ -38,8 +38,17 @@ router.post('/markets/:marketId/statement', authMiddleware, async (req, res) => 
       return res.status(400).json({ error: `Expected ${market.outcomes.length} probabilities` });
     }
 
-    const probSum = probabilities.reduce((a, b) => a + b, 0);
-    const normalizedProbs = probabilities.map(p => p / probSum);
+    const numericProbabilities = probabilities.map(p => Number(p));
+    if (numericProbabilities.some(p => !Number.isFinite(p))) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'All probabilities must be valid numbers' });
+    }
+    const probSum = numericProbabilities.reduce((a, b) => a + b, 0);
+    if (!Number.isFinite(probSum) || probSum <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Sum of probabilities must be greater than 0' });
+    }
+    const normalizedProbs = numericProbabilities.map(p => p / probSum);
     if (normalizedProbs.some(p => p <= 0 || p >= 1)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'All probabilities must be strictly between 0 and 1' });
@@ -99,6 +108,9 @@ router.post('/:id/take', authMiddleware, async (req, res) => {
 
   if (!delta_quantities || !Array.isArray(delta_quantities)) {
     return res.status(400).json({ error: 'delta_quantities array is required' });
+  }
+  if (!delta_quantities.every(v => typeof v === 'number' && Number.isFinite(v))) {
+    return res.status(400).json({ error: 'delta_quantities must contain only finite numbers' });
   }
 
   const client = await pool.connect();
@@ -308,9 +320,15 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
       }
     }
 
-    // Mark both markets as resolved
-    await client.query('UPDATE statement_markets SET status = $1 WHERE id = $2', ['resolved', id]);
-    await client.query('UPDATE markets SET status = $1 WHERE id = $2', ['resolved', stmt.original_market_id]);
+    // Mark both markets as resolved and clear escrow now that all settlements are finalized
+    await client.query(
+      'UPDATE statement_markets SET status = $1, escrow = 0 WHERE id = $2',
+      ['resolved', id]
+    );
+    await client.query(
+      'UPDATE markets SET status = $1, escrow = 0 WHERE id = $2',
+      ['resolved', stmt.original_market_id]
+    );
 
     await client.query('COMMIT');
     res.json({ success: true, final_prices: finalPrices, settlements });

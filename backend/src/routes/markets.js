@@ -82,9 +82,16 @@ router.post('/', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: 'end_time must be in the future' });
   }
 
-  // Normalize probabilities
-  const probSum = probabilities.reduce((a, b) => a + b, 0);
-  const normalizedProbs = probabilities.map(p => p / probSum);
+  // Coerce and validate probabilities
+  const numericProbabilities = probabilities.map(p => Number(p));
+  if (numericProbabilities.some(p => !Number.isFinite(p))) {
+    return res.status(400).json({ error: 'All probabilities must be valid numbers' });
+  }
+  const probSum = numericProbabilities.reduce((a, b) => a + b, 0);
+  if (!Number.isFinite(probSum) || probSum <= 0) {
+    return res.status(400).json({ error: 'Sum of probabilities must be greater than 0' });
+  }
+  const normalizedProbs = numericProbabilities.map(p => p / probSum);
 
   if (normalizedProbs.some(p => p <= 0 || p >= 1)) {
     return res.status(400).json({ error: 'All probabilities must be strictly between 0 and 1' });

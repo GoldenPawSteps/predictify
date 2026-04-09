@@ -1,16 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const backendUrl = process.env.VITE_BACKEND_URL || 'http://localhost:3001';
+
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
     proxy: {
-      '/auth': 'http://localhost:3001',
-      '/markets': 'http://localhost:3001',
-      '/trades': 'http://localhost:3001',
-      '/settlement': 'http://localhost:3001',
-      '/portfolio': 'http://localhost:3001',
+      '/auth': backendUrl,
+      '/markets': backendUrl,
+      '/trades': backendUrl,
+      '/settlement': backendUrl,
+      '/portfolio': backendUrl,
     }
   }
 });

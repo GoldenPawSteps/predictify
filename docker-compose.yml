@@ -25,6 +25,8 @@ services:
 
   frontend:
     build: ./frontend
+    environment:
+      VITE_BACKEND_URL: http://backend:3001
     ports:
       - "3000:3000"
     depends_on:

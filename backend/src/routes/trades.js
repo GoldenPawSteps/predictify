@@ -12,6 +12,9 @@ router.post('/:marketId', authMiddleware, async (req, res) => {
   if (!delta_quantities || !Array.isArray(delta_quantities)) {
     return res.status(400).json({ error: 'delta_quantities array is required' });
   }
+  if (!delta_quantities.every(v => typeof v === 'number' && Number.isFinite(v))) {
+    return res.status(400).json({ error: 'delta_quantities must contain only finite numbers' });
+  }
 
   const client = await pool.connect();
   try {
