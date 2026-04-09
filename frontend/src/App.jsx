@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
@@ -22,15 +22,38 @@ function ScrollRestoration() {
 
   useEffect(() => { keyRef.current = key; }, [key]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const saved = scrollPositions.get(key);
-    if (saved !== undefined) {
-      const rafId = requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, saved)));
-      const timeoutId = setTimeout(() => window.scrollTo(0, saved), 300);
-      return () => { cancelAnimationFrame(rafId); clearTimeout(timeoutId); };
-    } else {
+    if (!saved || saved <= 0) {
       window.scrollTo(0, 0);
+      return;
     }
+
+    document.documentElement.style.visibility = 'hidden';
+    let rafId;
+
+    const tryRestore = () => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (maxScroll >= saved - 50) {
+        window.scrollTo({ top: saved, behavior: 'instant' });
+        document.documentElement.style.visibility = '';
+      } else {
+        rafId = requestAnimationFrame(tryRestore);
+      }
+    };
+    rafId = requestAnimationFrame(tryRestore);
+
+    const fallback = setTimeout(() => {
+      cancelAnimationFrame(rafId);
+      window.scrollTo({ top: saved, behavior: 'instant' });
+      document.documentElement.style.visibility = '';
+    }, 600);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(fallback);
+      document.documentElement.style.visibility = '';
+    };
   }, [key]);
 
   return null;
