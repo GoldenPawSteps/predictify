@@ -1,0 +1,2 @@
+# predictify
+prediction market app
