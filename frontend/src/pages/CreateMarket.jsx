@@ -146,7 +146,7 @@ export default function CreateMarket() {
             <input style={styles.input} type="number" min="0.1" step="0.1" value={beta} onChange={e => setBeta(e.target.value)} required />
 
             <label style={styles.label}>End Time</label>
-            <input style={{ ...styles.input, boxSizing: 'border-box', maxWidth: '100%', WebkitAppearance: 'none', appearance: 'none' }} type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+            <input style={{ ...styles.input, boxSizing: 'border-box', maxWidth: '100%', WebkitAppearance: 'none', appearance: 'none', minHeight: '2.6rem' }} type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} required />
 
             <div style={canAfford ? styles.infoBox : styles.warnBox}>
               <strong>Liquidity Cost (L):</strong> {isFinite(L) ? L.toFixed(4) : '—'}<br />
