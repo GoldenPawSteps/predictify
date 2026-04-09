@@ -90,6 +90,13 @@ router.post('/markets/:marketId/statement', authMiddleware, async (req, res) => 
       [req.user.id, -L, `Created statement market for ${marketId}`, stmt.id, 'statement_creation']
     );
 
+    // Record initial price snapshot
+    const initialPrices = getPrices(makerQuantities, normalizedProbs, liquidity_beta);
+    await client.query(
+      'INSERT INTO price_history (market_id, market_type, prices) VALUES ($1, $2, $3)',
+      [stmt.id, 'statement', initialPrices]
+    );
+
     await client.query('COMMIT');
     res.status(201).json({ statement_market: stmt });
   } catch (err) {
@@ -197,12 +204,20 @@ router.post('/:id/take', authMiddleware, async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    // Record price snapshot for statement market
+    const finalStmtPrices = getPrices(new_maker_quantities, probabilities, liquidity_beta);
+    await pool.query(
+      'INSERT INTO price_history (market_id, market_type, prices) VALUES ($1, $2, $3)',
+      [id, 'statement', finalStmtPrices]
+    );
+
     res.json({
       success: true,
       deltaC,
       delta_min,
       net_cost: netCost,
-      current_prices: getPrices(new_maker_quantities, probabilities, liquidity_beta),
+      current_prices: finalStmtPrices,
     });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -277,8 +292,6 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
       [id]
     );
     for (const pos of stmtPositions.rows) {
-      // Statement maker's position is handled separately above
-      if (pos.user_id === stmt.creator_id) continue;
       const grad = gradientDotProduct(
         stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta,
         pos.quantities
@@ -299,8 +312,6 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
       [stmt.original_market_id]
     );
     for (const pos of origPositions.rows) {
-      // Market maker's payout is based on market.maker_quantities (q^m), not a positions row
-      if (pos.user_id === market.creator_id) continue;
       const grad = gradientDotProduct(
         stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta,
         pos.quantities
@@ -338,6 +349,21 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+router.get('/:id/price-history', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT prices, created_at FROM price_history
+       WHERE market_id = $1 AND market_type = 'statement'
+       ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    res.json({ history: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

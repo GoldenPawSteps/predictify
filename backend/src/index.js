@@ -10,7 +10,7 @@ app.use(express.json());
 // Global rate limiter
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -27,7 +27,11 @@ const authLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-app.use('/auth', authLimiter, require('./routes/auth'));
+const authRouter = require('./routes/auth');
+// Apply strict limiter only to login/register, not to /auth/me
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
+app.use('/auth', authRouter);
 app.use('/markets', require('./routes/markets'));
 app.use('/trades', require('./routes/trades'));
 app.use('/settlement', require('./routes/settlement'));

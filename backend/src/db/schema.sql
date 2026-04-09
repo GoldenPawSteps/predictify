@@ -67,3 +67,11 @@ CREATE TABLE ledger (
   reference_type VARCHAR(50),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS price_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  market_id UUID NOT NULL,
+  market_type VARCHAR(10) NOT NULL DEFAULT 'market',
+  prices DOUBLE PRECISION[] NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);

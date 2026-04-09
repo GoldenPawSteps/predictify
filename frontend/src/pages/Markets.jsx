@@ -5,9 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 
 const styles = {
   container: { minHeight: '100vh', background: '#f0f2f5' },
-  nav: { background: '#1a1a2e', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  nav: { background: '#1a1a2e', padding: '0.75rem 1.25rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   navTitle: { color: '#fff', fontSize: '1.5rem', fontWeight: '700', textDecoration: 'none' },
-  navLinks: { display: 'flex', gap: '1rem', alignItems: 'center' },
+  navLinks: { display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' },
   navLink: { color: '#ccc', textDecoration: 'none', fontSize: '0.9rem' },
   navUser: { color: '#a5b4fc', fontSize: '0.9rem' },
   main: { maxWidth: '1100px', margin: '0 auto', padding: '2rem' },
@@ -36,10 +36,11 @@ function statusBadge(status) {
 export default function Markets() {
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    refreshUser();
     api.get('/markets').then(res => setMarkets(res.data.markets)).finally(() => setLoading(false));
   }, []);
 

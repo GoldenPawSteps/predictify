@@ -14,7 +14,7 @@ export default defineConfig({
       '/markets': backendUrl,
       '/trades': backendUrl,
       '/settlement': backendUrl,
-      '/portfolio': backendUrl,
+      '/portfolio/': backendUrl,
     }
   }
 });

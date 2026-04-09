@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -7,6 +7,34 @@ import Markets from './pages/Markets';
 import CreateMarket from './pages/CreateMarket';
 import MarketDetail from './pages/MarketDetail';
 import Portfolio from './pages/Portfolio';
+
+const scrollPositions = new Map();
+
+function ScrollRestoration() {
+  const { key } = useLocation();
+  const keyRef = useRef(key);
+
+  useEffect(() => {
+    const handleScroll = () => { scrollPositions.set(keyRef.current, window.scrollY); };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => { keyRef.current = key; }, [key]);
+
+  useEffect(() => {
+    const saved = scrollPositions.get(key);
+    if (saved !== undefined) {
+      const rafId = requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, saved)));
+      const timeoutId = setTimeout(() => window.scrollTo(0, saved), 300);
+      return () => { cancelAnimationFrame(rafId); clearTimeout(timeoutId); };
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [key]);
+
+  return null;
+}
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -18,6 +46,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollRestoration />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

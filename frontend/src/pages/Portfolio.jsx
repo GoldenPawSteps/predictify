@@ -5,9 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 
 const styles = {
   container: { minHeight: '100vh', background: '#f0f2f5' },
-  nav: { background: '#1a1a2e', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  nav: { background: '#1a1a2e', padding: '0.75rem 1.25rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   navTitle: { color: '#fff', fontSize: '1.5rem', fontWeight: '700', textDecoration: 'none' },
-  navLinks: { display: 'flex', gap: '1rem', alignItems: 'center' },
+  navLinks: { display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' },
   navLink: { color: '#ccc', textDecoration: 'none', fontSize: '0.9rem' },
   navUser: { color: '#a5b4fc', fontSize: '0.9rem' },
   main: { maxWidth: '900px', margin: '2rem auto', padding: '0 1rem' },
@@ -28,20 +28,24 @@ const styles = {
 
 export default function Portfolio() {
   const [markets, setMarkets] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
       try {
-        const [mRes, lRes] = await Promise.all([
+        const [, mRes, lRes, pRes] = await Promise.all([
+          refreshUser(),
           api.get('/markets'),
           api.get('/portfolio/ledger').catch(() => ({ data: { ledger: [] } })),
+          api.get('/portfolio/positions').catch(() => ({ data: { positions: [] } })),
         ]);
         setMarkets(mRes.data.markets);
         setLedger(lRes.data.ledger || []);
+        setPositions(pRes.data.positions || []);
       } finally {
         setLoading(false);
       }
@@ -77,40 +81,69 @@ export default function Portfolio() {
           {markets.filter(m => m.creator_id === user?.id).length === 0 ? (
             <div style={styles.empty}>You haven't created any markets yet. <Link to="/markets/new">Create one!</Link></div>
           ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Question</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Liquidity Cost</th>
-                  <th style={styles.th}>Ends</th>
-                </tr>
-              </thead>
-              <tbody>
-                {markets.filter(m => m.creator_id === user?.id).map(m => (
-                  <tr key={m.id}>
-                    <td style={styles.td}><Link to={`/markets/${m.id}`} style={styles.posLink}>{m.question}</Link></td>
-                    <td style={styles.td}>{m.status}</td>
-                    <td style={styles.td}>{m.liquidity_cost?.toFixed(4)}</td>
-                    <td style={styles.td}>{new Date(m.end_time).toLocaleDateString()}</td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Question</th>
+                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>L Cost</th>
+                    <th style={styles.th}>Ends</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {markets.filter(m => m.creator_id === user?.id).map(m => (
+                    <tr key={m.id}>
+                      <td style={styles.td}><Link to={`/markets/${m.id}`} style={styles.posLink}>{m.question}</Link></td>
+                      <td style={styles.td}>{m.status}</td>
+                      <td style={styles.td}>{m.liquidity_cost?.toFixed(2)}</td>
+                      <td style={styles.td}>{new Date(m.end_time).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
         <div style={styles.section}>
           <h2 style={styles.h2}>Open Positions</h2>
-          <p style={{ color: '#888', fontSize: '0.85rem' }}>Visit individual market pages to see detailed position data.</p>
-          <div style={styles.empty}>
-            <Link to="/markets" style={{ color: '#4f46e5' }}>Browse Markets →</Link>
-          </div>
+          {positions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).length === 0 ? (
+            <div style={styles.empty}>
+              No open positions. <Link to="/markets" style={{ color: '#4f46e5' }}>Browse Markets →</Link>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Market</th>
+                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>Quantities</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).map(p => (
+                    <tr key={p.market_id}>
+                      <td style={styles.td}><Link to={`/markets/${p.market_id}`} style={styles.posLink}>{p.question}</Link></td>
+                      <td style={styles.td}>{p.status}</td>
+                      <td style={styles.td}>
+                        {p.outcomes.map((o, i) => (
+                          <div key={i} style={{ fontSize: '0.85rem' }}>{o}: {Number(p.quantities[i]).toFixed(2)}</div>
+                        ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {ledger.length > 0 && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Transaction History</h2>
+            <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -123,7 +156,12 @@ export default function Portfolio() {
                 {ledger.map(entry => (
                   <tr key={entry.id}>
                     <td style={styles.td}>{new Date(entry.created_at).toLocaleString()}</td>
-                    <td style={styles.td}>{entry.description}</td>
+                    <td style={styles.td}>
+                      {entry.description}
+                      {entry.market_id && entry.market_question && (
+                        <> · <Link to={`/markets/${entry.market_id}`} style={styles.posLink}>{entry.market_question}</Link></>
+                      )}
+                    </td>
                     <td style={{ ...styles.td, ...(entry.amount >= 0 ? styles.ledgerPos : styles.ledgerNeg) }}>
                       {entry.amount >= 0 ? '+' : ''}{entry.amount.toFixed(4)}
                     </td>
@@ -131,6 +169,7 @@ export default function Portfolio() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

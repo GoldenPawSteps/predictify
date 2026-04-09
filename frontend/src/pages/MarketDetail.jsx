@@ -1,7 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+
+const CHART_COLORS = ['#4f46e5', '#059669', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#be185d', '#16a34a'];
+
+function formatHistory(history, outcomes) {
+  return history.map((h) => {
+    const pt = { t: new Date(h.created_at).getTime() };
+    outcomes.forEach((o, i) => { pt[o] = +(h.prices[i] * 100).toFixed(1); });
+    return pt;
+  });
+}
+
+function formatChartTime(ms, history) {
+  if (!history || history.length < 2) return '';
+  const span = history[history.length - 1].t - history[0].t;
+  const d = new Date(ms);
+  if (span < 60 * 60 * 1000) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } else if (span < 24 * 60 * 60 * 1000) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else {
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+}
 
 function getLocalPrices(quantities, probabilities, beta) {
   const logTerms = quantities.map((q, i) => Math.log(probabilities[i]) + q / beta);
@@ -13,9 +37,9 @@ function getLocalPrices(quantities, probabilities, beta) {
 
 const styles = {
   container: { minHeight: '100vh', background: '#f0f2f5' },
-  nav: { background: '#1a1a2e', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  nav: { background: '#1a1a2e', padding: '0.75rem 1.25rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   navTitle: { color: '#fff', fontSize: '1.5rem', fontWeight: '700', textDecoration: 'none' },
-  navLinks: { display: 'flex', gap: '1rem', alignItems: 'center' },
+  navLinks: { display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' },
   navLink: { color: '#ccc', textDecoration: 'none', fontSize: '0.9rem' },
   navUser: { color: '#a5b4fc', fontSize: '0.9rem' },
   main: { maxWidth: '900px', margin: '2rem auto', padding: '0 1rem' },
@@ -30,7 +54,7 @@ const styles = {
   progressFill: { height: '100%', background: '#4f46e5', borderRadius: '4px', transition: 'width 0.3s' },
   inputRow: { display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' },
   label: { flex: 1, fontSize: '0.9rem', color: '#333' },
-  numInput: { width: '120px', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.95rem' },
+  numInput: { width: '120px', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' },
   tradeBtn: { background: '#4f46e5', color: '#fff', border: 'none', padding: '0.65rem 1.5rem', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem' },
   costBox: { background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.9rem' },
   errorBox: { background: '#fee2e2', color: '#b91c1c', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' },
@@ -42,7 +66,7 @@ const styles = {
   resolveBtn: { background: '#059669', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', marginTop: '0.5rem', marginLeft: '0.5rem' },
   backLink: { color: '#4f46e5', textDecoration: 'none', fontSize: '0.9rem' },
   logoutBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' },
-  stmtInput: { width: '100px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.9rem', marginRight: '0.5rem' },
+  stmtInput: { width: '100px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem', marginRight: '0.5rem' },
 };
 
 function statusBadge(status) {
@@ -69,17 +93,25 @@ export default function MarketDetail() {
   const [stmtTradeError, setStmtTradeError] = useState('');
   const [stmtTradeSuccess, setStmtTradeSuccess] = useState('');
   const [stmtTrading, setStmtTrading] = useState(false);
+  const [priceHistory, setPriceHistory] = useState([]);
+  const [stmtPriceHistory, setStmtPriceHistory] = useState([]);
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   async function fetchData() {
     try {
-      const res = await api.get(`/markets/${id}`);
+      const [res, histRes] = await Promise.all([
+        api.get(`/markets/${id}`),
+        api.get(`/markets/${id}/price-history`).catch(() => ({ data: { history: [] } }))
+      ]);
       setData(res.data);
       setDeltas(new Array(res.data.market.outcomes.length).fill(0));
       setStmtProbs(res.data.market.probabilities.map(() => (1 / res.data.market.outcomes.length).toFixed(4)));
+      setPriceHistory(histRes.data.history || []);
       if (res.data.statement_market) {
         setStmtDeltas(new Array(res.data.market.outcomes.length).fill(0));
+        const stmtHistRes = await api.get(`/settlement/${res.data.statement_market.id}/price-history`).catch(() => ({ data: { history: [] } }));
+        setStmtPriceHistory(stmtHistRes.data.history || []);
       }
     } catch (err) {
       console.error(err);
@@ -88,7 +120,7 @@ export default function MarketDetail() {
     }
   }
 
-  useEffect(() => { fetchData(); }, [id]);
+  useEffect(() => { fetchData(); refreshUser(); }, [id]);
 
   function computeTradeCost(quantities, probabilities, beta, deltaQty, currentTakerQty) {
     function costFn(q, p, b) {
@@ -203,7 +235,7 @@ export default function MarketDetail() {
       </nav>
       <div style={styles.main}>
         <div style={{ marginBottom: '1rem' }}>
-          <Link to="/markets" style={styles.backLink}>← Back to Markets</Link>
+          <span style={{ ...styles.backLink, cursor: 'pointer' }} onClick={() => navigate(-1)}>← Back</span>
         </div>
 
         <div style={styles.section}>
@@ -223,6 +255,24 @@ export default function MarketDetail() {
               </div>
             </div>
           ))}
+          {priceHistory.length >= 1 && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Price History</h3>
+              <div style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }} tabIndex={-1}>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={formatHistory(priceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(priceHistory, market.outcomes))} minTickGap={40} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                  <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />
+                  <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
+                  {market.outcomes.map((o, i) => (
+                    <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
 
         {canTrade && (
@@ -339,6 +389,24 @@ export default function MarketDetail() {
                 </div>
               );
             })}
+          {stmtPriceHistory.length >= 1 && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Statement Price History</h3>
+              <div style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }} tabIndex={-1}>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={formatHistory(stmtPriceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(stmtPriceHistory, market.outcomes))} minTickGap={40} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                  <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />
+                  <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
+                  {market.outcomes.map((o, i) => (
+                    <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+              </div>
+            </div>
+          )}
 
             {statement_market.status === 'active' && new Date(statement_market.end_time) > new Date() && (
               <div style={{ marginTop: '1rem' }}>
@@ -352,7 +420,7 @@ export default function MarketDetail() {
                       <input
                         style={styles.numInput}
                         type="number" step="0.01"
-                        value={stmtDeltas[i] || 0}
+                        value={stmtDeltas[i]}
                         onChange={e => { const d = [...stmtDeltas]; d[i] = e.target.value; setStmtDeltas(d); }}
                       />
                     </div>

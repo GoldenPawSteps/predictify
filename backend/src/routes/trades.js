@@ -112,12 +112,20 @@ router.post('/:marketId', authMiddleware, async (req, res) => {
 
     const updatedMarket = await pool.query('SELECT * FROM markets WHERE id = $1', [marketId]);
     const m = updatedMarket.rows[0];
+    const finalPrices = getPrices(m.maker_quantities, m.probabilities, m.liquidity_beta);
+
+    // Record price snapshot
+    await pool.query(
+      'INSERT INTO price_history (market_id, market_type, prices) VALUES ($1, $2, $3)',
+      [marketId, 'market', finalPrices]
+    );
+
     res.json({
       success: true,
       deltaC,
       delta_min,
       net_cost: netCost,
-      current_prices: getPrices(m.maker_quantities, m.probabilities, m.liquidity_beta),
+      current_prices: finalPrices,
     });
   } catch (err) {
     await client.query('ROLLBACK');

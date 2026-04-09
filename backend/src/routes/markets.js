@@ -137,6 +137,13 @@ router.post('/', authMiddleware, async (req, res) => {
       [req.user.id, -L, `Created market: ${question}`, market.id, 'market_creation']
     );
 
+    // Record initial price snapshot
+    const initialPrices = getPrices(makerQuantities, normalizedProbs, liquidity_beta);
+    await client.query(
+      'INSERT INTO price_history (market_id, market_type, prices) VALUES ($1, $2, $3)',
+      [market.id, 'market', initialPrices]
+    );
+
     await client.query('COMMIT');
     res.status(201).json({ market: { ...market, current_prices: getPrices(makerQuantities, normalizedProbs, liquidity_beta) } });
   } catch (err) {
@@ -145,6 +152,21 @@ router.post('/', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+router.get('/:id/price-history', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT prices, created_at FROM price_history
+       WHERE market_id = $1 AND market_type = 'market'
+       ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    res.json({ history: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
