@@ -1,11 +1,11 @@
 const express = require('express');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
-const { costFunction, liquidityCost, getPrices } = require('../math/market');
+const { costFunction, liquidityCost, getPrices, gradientDotProduct } = require('../math/market');
 
 const router = express.Router();
 
-// POST /markets/:marketId/statement — create a statement market
+// POST /settlement/markets/:marketId/statement — create a statement market
 router.post('/markets/:marketId/statement', authMiddleware, async (req, res) => {
   const { marketId } = req.params;
   const { probabilities, liquidity_beta, end_time } = req.body;
@@ -65,20 +65,16 @@ router.post('/markets/:marketId/statement', authMiddleware, async (req, res) => 
       return res.status(400).json({ error: `Insufficient balance. Need ${L.toFixed(4)}` });
     }
 
+    // Deduct L from statement maker's balance into statement market escrow
     await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [L, req.user.id]);
     await client.query('UPDATE markets SET status = $1 WHERE id = $2', ['pending_resolution', marketId]);
 
     const stmtResult = await client.query(
-      `INSERT INTO statement_markets (original_market_id, creator_id, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [marketId, req.user.id, normalizedProbs, liquidity_beta, endDate, makerQuantities, L]
+      `INSERT INTO statement_markets (original_market_id, creator_id, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost, escrow)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [marketId, req.user.id, normalizedProbs, liquidity_beta, endDate, makerQuantities, L, L]
     );
     const stmt = stmtResult.rows[0];
-
-    await client.query(
-      'INSERT INTO statement_positions (statement_market_id, user_id, quantities) VALUES ($1, $2, $3)',
-      [stmt.id, req.user.id, makerQuantities]
-    );
 
     await client.query(
       'INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)',
@@ -96,7 +92,7 @@ router.post('/markets/:marketId/statement', authMiddleware, async (req, res) => 
   }
 });
 
-// POST /statement/:id/take — trade in statement market
+// POST /settlement/:id/take — trade in statement market
 router.post('/:id/take', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { delta_quantities } = req.body;
@@ -140,7 +136,19 @@ router.post('/:id/take', authMiddleware, async (req, res) => {
     const new_maker_quantities = maker_quantities.map((q, i) => q + delta_quantities[i]);
     const C_after = costFunction(new_maker_quantities, probabilities, liquidity_beta);
     const deltaC = C_after - C_before;
-    const delta_min = Math.min(...delta_quantities);
+
+    // Get taker's current statement position to compute Δ_min = min(q'^t) - min(q^t)
+    const takerPosResult = await client.query(
+      'SELECT quantities FROM statement_positions WHERE statement_market_id = $1 AND user_id = $2 FOR UPDATE',
+      [id, req.user.id]
+    );
+    const currentTakerQty = takerPosResult.rows[0]
+      ? takerPosResult.rows[0].quantities
+      : new Array(nOutcomes).fill(0);
+
+    const q_prime_t = currentTakerQty.map((q, i) => q + delta_quantities[i]);
+    const delta_min = Math.min(...q_prime_t) - Math.min(...currentTakerQty);
+
     const netCost = deltaC - delta_min;
 
     const userResult = await client.query('SELECT balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
@@ -149,53 +157,31 @@ router.post('/:id/take', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: `Insufficient balance. Trade costs ${netCost.toFixed(4)}` });
     }
 
+    // Deduct from taker — held in statement market escrow until settlement
     await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [netCost, req.user.id]);
-    await client.query('UPDATE statement_markets SET maker_quantities = $1 WHERE id = $2', [new_maker_quantities, id]);
 
-    const existingPos = await client.query(
-      'SELECT * FROM statement_positions WHERE statement_market_id = $1 AND user_id = $2 FOR UPDATE',
-      [id, req.user.id]
+    // Update statement market: new aggregate state and escrow
+    await client.query(
+      'UPDATE statement_markets SET maker_quantities = $1, escrow = escrow + $2 WHERE id = $3',
+      [new_maker_quantities, netCost, id]
     );
-    if (existingPos.rows[0]) {
-      const newQty = existingPos.rows[0].quantities.map((q, i) => q + delta_quantities[i]);
+
+    // Update taker statement position: q'^t
+    if (takerPosResult.rows[0]) {
       await client.query(
         'UPDATE statement_positions SET quantities = $1, updated_at = NOW() WHERE statement_market_id = $2 AND user_id = $3',
-        [newQty, id, req.user.id]
+        [q_prime_t, id, req.user.id]
       );
     } else {
       await client.query(
         'INSERT INTO statement_positions (statement_market_id, user_id, quantities) VALUES ($1, $2, $3)',
-        [id, req.user.id, delta_quantities]
+        [id, req.user.id, q_prime_t]
       );
     }
-
-    // Update maker position
-    const makerPos = await client.query(
-      'SELECT * FROM statement_positions WHERE statement_market_id = $1 AND user_id = $2 FOR UPDATE',
-      [id, stmt.creator_id]
-    );
-    if (makerPos.rows[0]) {
-      const newMakerQty = makerPos.rows[0].quantities.map((q, i) => q - delta_quantities[i]);
-      await client.query(
-        'UPDATE statement_positions SET quantities = $1, updated_at = NOW() WHERE statement_market_id = $2 AND user_id = $3',
-        [newMakerQty, id, stmt.creator_id]
-      );
-    } else {
-      await client.query(
-        'INSERT INTO statement_positions (statement_market_id, user_id, quantities) VALUES ($1, $2, $3)',
-        [id, stmt.creator_id, delta_quantities.map(d => -d)]
-      );
-    }
-
-    await client.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [netCost, stmt.creator_id]);
 
     await client.query(
       'INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)',
       [req.user.id, -netCost, `Trade in statement market ${id}`, id, 'statement_trade']
-    );
-    await client.query(
-      'INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)',
-      [stmt.creator_id, netCost, `Received from trade in statement market ${id}`, id, 'statement_trade']
     );
 
     await client.query('COMMIT');
@@ -215,7 +201,7 @@ router.post('/:id/take', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /statement/:id/resolve — resolve statement market
+// POST /settlement/:id/resolve — resolve statement market and settle all participants
 router.post('/:id/resolve', authMiddleware, async (req, res) => {
   const { id } = req.params;
 
@@ -239,34 +225,81 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Statement market has not ended yet' });
     }
 
-    // Get final prices from statement market
+    // Lock original market
+    const origResult = await client.query('SELECT * FROM markets WHERE id = $1 FOR UPDATE', [stmt.original_market_id]);
+    const market = origResult.rows[0];
+
+    // --- Final prices: gradient of C' at q'^m ---
+    // dC'(q'^m)[x] = gradientDotProduct(stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta, x)
     const finalPrices = getPrices(stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta);
 
-    // Get all positions in both original and statement market
-    const origPositions = await client.query(
-      'SELECT * FROM positions WHERE market_id = $1',
-      [stmt.original_market_id]
+    // C'(q'^m) for statement maker payout
+    const C_prime_qm = costFunction(stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta);
+
+    // dC'(q'^m)[q'^m]
+    const grad_stmt_at_stmt = gradientDotProduct(
+      stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta,
+      stmt.maker_quantities
     );
+
+    // C(q^m) for original market maker payout
+    const C_qm = costFunction(market.maker_quantities, market.probabilities, market.liquidity_beta);
+
+    // dC'(q'^m)[q^m] — uses statement market prices but applied to original market aggregate
+    const grad_stmt_at_orig = gradientDotProduct(
+      stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta,
+      market.maker_quantities
+    );
+
+    const settlements = {};
+
+    // --- Statement maker settlement ---
+    // B'^m ← B'^m + L' + C'(q'^m) - dC'(q'^m)[q'^m]
+    const stmtMakerPayout = stmt.liquidity_cost + C_prime_qm - grad_stmt_at_stmt;
+    settlements[stmt.creator_id] = (settlements[stmt.creator_id] || 0) + stmtMakerPayout;
+
+    // --- Statement takers settlement ---
+    // B'^t ← B'^t + dC'(q'^m)[q'^t] - min(q'^t)
     const stmtPositions = await client.query(
       'SELECT * FROM statement_positions WHERE statement_market_id = $1',
       [id]
     );
-
-    // Settle: each participant receives dot(quantities, finalPrices) from each market they're in
-    const settlements = {};
-
-    for (const pos of origPositions.rows) {
-      const payout = pos.quantities.reduce((sum, q, i) => sum + q * finalPrices[i], 0);
-      settlements[pos.user_id] = (settlements[pos.user_id] || 0) + payout;
-    }
     for (const pos of stmtPositions.rows) {
-      const payout = pos.quantities.reduce((sum, q, i) => sum + q * finalPrices[i], 0);
+      // Statement maker's position is handled separately above
+      if (pos.user_id === stmt.creator_id) continue;
+      const grad = gradientDotProduct(
+        stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta,
+        pos.quantities
+      );
+      const payout = grad - Math.min(...pos.quantities);
       settlements[pos.user_id] = (settlements[pos.user_id] || 0) + payout;
     }
 
-    // Apply settlements
+    // --- Original market maker settlement ---
+    // B^m ← B^m + L + C(q^m) - dC'(q'^m)[q^m]
+    const origMakerPayout = market.liquidity_cost + C_qm - grad_stmt_at_orig;
+    settlements[market.creator_id] = (settlements[market.creator_id] || 0) + origMakerPayout;
+
+    // --- Original market takers settlement ---
+    // B^t ← B^t + dC'(q'^m)[q^t] - min(q^t)
+    const origPositions = await client.query(
+      'SELECT * FROM positions WHERE market_id = $1',
+      [stmt.original_market_id]
+    );
+    for (const pos of origPositions.rows) {
+      // Market maker's payout is based on market.maker_quantities (q^m), not a positions row
+      if (pos.user_id === market.creator_id) continue;
+      const grad = gradientDotProduct(
+        stmt.maker_quantities, stmt.probabilities, stmt.liquidity_beta,
+        pos.quantities
+      );
+      const payout = grad - Math.min(...pos.quantities);
+      settlements[pos.user_id] = (settlements[pos.user_id] || 0) + payout;
+    }
+
+    // Apply all settlements
     for (const [userId, amount] of Object.entries(settlements)) {
-      if (amount !== 0) {
+      if (Math.abs(amount) > 1e-10) {
         await client.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [amount, userId]);
         await client.query(
           'INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)',

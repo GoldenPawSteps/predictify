@@ -69,7 +69,7 @@ export default function MarketDetail() {
   const [stmtTradeError, setStmtTradeError] = useState('');
   const [stmtTradeSuccess, setStmtTradeSuccess] = useState('');
   const [stmtTrading, setStmtTrading] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   async function fetchData() {
@@ -90,7 +90,7 @@ export default function MarketDetail() {
 
   useEffect(() => { fetchData(); }, [id]);
 
-  function computeTradeCost(quantities, probabilities, beta, deltaQty) {
+  function computeTradeCost(quantities, probabilities, beta, deltaQty, currentTakerQty) {
     function costFn(q, p, b) {
       const logTerms = q.map((qi, i) => Math.log(p[i]) + qi / b);
       const max = Math.max(...logTerms);
@@ -99,7 +99,10 @@ export default function MarketDetail() {
     const before = costFn(quantities, probabilities, beta);
     const after = costFn(quantities.map((q, i) => q + deltaQty[i]), probabilities, beta);
     const deltaC = after - before;
-    const deltaMin = Math.min(...deltaQty);
+    // Δ_min = min(q'^t) - min(q^t) where q'^t = q^t + Δq
+    const curQty = currentTakerQty || new Array(deltaQty.length).fill(0);
+    const qPrimeT = curQty.map((q, i) => q + deltaQty[i]);
+    const deltaMin = Math.min(...qPrimeT) - Math.min(...curQty);
     return { deltaC, deltaMin, netCost: deltaC - deltaMin };
   }
 
@@ -112,6 +115,7 @@ export default function MarketDetail() {
       const res = await api.post(`/trades/${id}`, { delta_quantities: dq });
       setTradeSuccess(`Trade successful! Net cost: ${res.data.net_cost.toFixed(4)}`);
       await fetchData();
+      await refreshUser();
     } catch (err) {
       setTradeError(err.response?.data?.error || 'Trade failed');
     } finally {
@@ -149,6 +153,7 @@ export default function MarketDetail() {
       const res = await api.post(`/settlement/${data.statement_market.id}/take`, { delta_quantities: dq });
       setStmtTradeSuccess(`Trade successful! Net cost: ${res.data.net_cost.toFixed(4)}`);
       await fetchData();
+      await refreshUser();
     } catch (err) {
       setStmtTradeError(err.response?.data?.error || 'Trade failed');
     } finally {
@@ -160,6 +165,7 @@ export default function MarketDetail() {
     try {
       await api.post(`/settlement/${data.statement_market.id}/resolve`);
       await fetchData();
+      await refreshUser();
     } catch (err) {
       alert(err.response?.data?.error || 'Resolution failed');
     }
@@ -178,8 +184,10 @@ export default function MarketDetail() {
   const canCreateStmt = (market.status === 'active') && isExpired && !statement_market;
 
   const dq = deltas.map(Number);
+  const myPosition = positions?.find(p => p.user_id === user?.id);
+  const myQty = myPosition ? myPosition.quantities : null;
   const tradeCostPreview = dq.some(d => d !== 0) && canTrade
-    ? computeTradeCost(market.maker_quantities, market.probabilities, market.liquidity_beta, dq)
+    ? computeTradeCost(market.maker_quantities, market.probabilities, market.liquidity_beta, dq, myQty)
     : null;
 
   return (

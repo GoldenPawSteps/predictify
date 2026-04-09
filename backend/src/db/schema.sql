@@ -20,6 +20,7 @@ CREATE TABLE markets (
   status VARCHAR(20) NOT NULL DEFAULT 'active',
   maker_quantities DOUBLE PRECISION[] NOT NULL,
   liquidity_cost DOUBLE PRECISION NOT NULL,
+  escrow DOUBLE PRECISION NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -43,6 +44,7 @@ CREATE TABLE statement_markets (
   status VARCHAR(20) NOT NULL DEFAULT 'active',
   maker_quantities DOUBLE PRECISION[] NOT NULL,
   liquidity_cost DOUBLE PRECISION NOT NULL,
+  escrow DOUBLE PRECISION NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

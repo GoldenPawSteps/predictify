@@ -40,22 +40,31 @@ router.post('/:marketId', authMiddleware, async (req, res) => {
 
     const { maker_quantities, probabilities, liquidity_beta } = market;
 
-    // C_before = cost at current maker quantities
+    // C(q^m) before trade
     const C_before = costFunction(maker_quantities, probabilities, liquidity_beta);
 
-    // New maker quantities after trade
+    // q'^m = q^m + Δq
     const new_maker_quantities = maker_quantities.map((q, i) => q + delta_quantities[i]);
 
-    // C_after = cost at new quantities
+    // C(q'^m) after trade
     const C_after = costFunction(new_maker_quantities, probabilities, liquidity_beta);
 
-    // ΔC = C_after - C_before (cost of trade)
+    // ΔC = C(q'^m) - C(q^m)
     const deltaC = C_after - C_before;
 
-    // Δ_min = min(delta_quantities) — taker's guaranteed payoff offset
-    const delta_min = Math.min(...delta_quantities);
+    // Get taker's current position to compute Δ_min = min(q'^t) - min(q^t)
+    const takerPosResult = await client.query(
+      'SELECT quantities FROM positions WHERE market_id = $1 AND user_id = $2 FOR UPDATE',
+      [marketId, req.user.id]
+    );
+    const currentTakerQty = takerPosResult.rows[0]
+      ? takerPosResult.rows[0].quantities
+      : new Array(market.outcomes.length).fill(0);
 
-    // Net cost to taker
+    const q_prime_t = currentTakerQty.map((q, i) => q + delta_quantities[i]);
+    const delta_min = Math.min(...q_prime_t) - Math.min(...currentTakerQty);
+
+    // Net cost to taker: ΔC - Δ_min
     const netCost = deltaC - delta_min;
 
     // Lock user
@@ -68,59 +77,32 @@ router.post('/:marketId', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: `Insufficient balance. Trade costs ${netCost.toFixed(4)}, have ${user.balance.toFixed(4)}` });
     }
 
-    // Deduct net cost from taker
+    // Deduct net cost from taker — funds held in market escrow until settlement
     await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [netCost, req.user.id]);
 
-    // Update maker quantities on market
-    await client.query('UPDATE markets SET maker_quantities = $1 WHERE id = $2', [new_maker_quantities, marketId]);
-
-    // Update taker position
-    const existingPos = await client.query(
-      'SELECT * FROM positions WHERE market_id = $1 AND user_id = $2 FOR UPDATE',
-      [marketId, req.user.id]
+    // Update market: new aggregate state q^m and escrow
+    await client.query(
+      'UPDATE markets SET maker_quantities = $1, escrow = escrow + $2 WHERE id = $3',
+      [new_maker_quantities, netCost, marketId]
     );
-    if (existingPos.rows[0]) {
-      const newQty = existingPos.rows[0].quantities.map((q, i) => q + delta_quantities[i]);
+
+    // Update taker position: q^t ← q^t + Δq
+    if (takerPosResult.rows[0]) {
       await client.query(
         'UPDATE positions SET quantities = $1, updated_at = NOW() WHERE market_id = $2 AND user_id = $3',
-        [newQty, marketId, req.user.id]
+        [q_prime_t, marketId, req.user.id]
       );
     } else {
       await client.query(
         'INSERT INTO positions (market_id, user_id, quantities) VALUES ($1, $2, $3)',
-        [marketId, req.user.id, delta_quantities]
+        [marketId, req.user.id, q_prime_t]
       );
     }
 
-    // Update maker position (inverse delta — maker takes the other side)
-    const makerPosResult = await client.query(
-      'SELECT * FROM positions WHERE market_id = $1 AND user_id = $2 FOR UPDATE',
-      [marketId, market.creator_id]
-    );
-    if (makerPosResult.rows[0]) {
-      const newMakerQty = makerPosResult.rows[0].quantities.map((q, i) => q - delta_quantities[i]);
-      await client.query(
-        'UPDATE positions SET quantities = $1, updated_at = NOW() WHERE market_id = $2 AND user_id = $3',
-        [newMakerQty, marketId, market.creator_id]
-      );
-    } else {
-      await client.query(
-        'INSERT INTO positions (market_id, user_id, quantities) VALUES ($1, $2, $3)',
-        [marketId, market.creator_id, delta_quantities.map(d => -d)]
-      );
-    }
-
-    // Credit maker with net cost (minus delta_min offset which goes to taker's position value)
-    await client.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [netCost, market.creator_id]);
-
-    // Ledger entries
+    // Ledger entry for taker
     await client.query(
       'INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)',
       [req.user.id, -netCost, `Trade in market ${marketId}`, marketId, 'trade']
-    );
-    await client.query(
-      'INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)',
-      [market.creator_id, netCost, `Received from trade in market ${marketId}`, marketId, 'trade']
     );
 
     await client.query('COMMIT');

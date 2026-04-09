@@ -109,12 +109,12 @@ router.post('/', authMiddleware, async (req, res) => {
     // Deduct L from maker balance
     await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [L, req.user.id]);
 
-    // Create market
+    // Create market — initial escrow equals the liquidity cost L deposited by maker
     const marketResult = await client.query(
-      `INSERT INTO markets (creator_id, question, outcomes, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO markets (creator_id, question, outcomes, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost, escrow)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [req.user.id, question, outcomes, normalizedProbs, liquidity_beta, endDate, makerQuantities, L]
+      [req.user.id, question, outcomes, normalizedProbs, liquidity_beta, endDate, makerQuantities, L, L]
     );
     const market = marketResult.rows[0];
 
