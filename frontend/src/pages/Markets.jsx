@@ -15,7 +15,7 @@ const styles = {
   h1: { fontSize: '1.75rem', fontWeight: '700', color: '#1a1a2e', margin: 0 },
   createBtn: { background: '#4f46e5', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', textDecoration: 'none', fontSize: '0.95rem' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' },
-  card: { background: '#fff', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'box-shadow 0.2s' },
+  card: { background: '#fff', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'box-shadow 0.2s', display: 'block', textDecoration: 'none', color: 'inherit' },
   cardTitle: { fontSize: '1.1rem', fontWeight: '600', color: '#1a1a2e', marginBottom: '0.5rem' },
   badge: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', marginBottom: '0.75rem' },
   priceBar: { marginBottom: '0.5rem' },
@@ -70,7 +70,7 @@ export default function Markets() {
         ) : (
           <div style={styles.grid}>
             {markets.map(m => (
-              <div key={m.id} style={styles.card} onClick={() => navigate(`/markets/${m.id}`)}>
+              <Link key={m.id} to={`/markets/${m.id}`} style={styles.card}>
                 <div style={{ ...styles.badge, ...statusBadge(m.status) }}>{m.status.replace('_', ' ')}</div>
                 <div style={styles.cardTitle}>{m.question}</div>
                 {m.outcomes.map((outcome, i) => (
@@ -87,7 +87,7 @@ export default function Markets() {
                 <div style={styles.meta}>
                   <span>By {m.creator_username}</span> · <span>Ends {new Date(m.end_time).toLocaleDateString()}</span> · <span>β={m.liquidity_beta}</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -93,6 +93,7 @@ export default function MarketDetail() {
   const [stmtTradeError, setStmtTradeError] = useState('');
   const [stmtTradeSuccess, setStmtTradeSuccess] = useState('');
   const [stmtTrading, setStmtTrading] = useState(false);
+  const [chartReady, setChartReady] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
   const [stmtPriceHistory, setStmtPriceHistory] = useState([]);
   const { user, logout, refreshUser } = useAuth();
@@ -121,6 +122,19 @@ export default function MarketDetail() {
   }
 
   useEffect(() => { fetchData(); refreshUser(); }, [id]);
+  useEffect(() => {
+    setChartReady(false);
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // On desktop there is no ghost touch — enable immediately.
+    if (!isTouchDevice) setChartReady(true);
+    // On touch devices: do NOT listen on document. onTouchEnd on the chart
+    // divs themselves handles enabling (see JSX below).
+  }, [id]);
+
+  function enableChart() {
+    if (!chartReady)
+      setTimeout(() => setChartReady(true), 100);
+  }
 
   function computeTradeCost(quantities, probabilities, beta, deltaQty, currentTakerQty) {
     function costFn(q, p, b) {
@@ -258,18 +272,21 @@ export default function MarketDetail() {
           {priceHistory.length >= 1 && (
             <div style={{ marginTop: '1.25rem' }}>
               <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Price History</h3>
-              <div style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }} tabIndex={-1}>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={formatHistory(priceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(priceHistory, market.outcomes))} minTickGap={40} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                  <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />
-                  <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
-                  {market.outcomes.map((o, i) => (
-                    <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+              <div style={{ position: 'relative', height: 180 }}>
+                <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={formatHistory(priceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(priceHistory, market.outcomes))} minTickGap={40} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                      {chartReady && <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />}
+                      <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
+                      {market.outcomes.map((o, i) => (
+                        <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                {!chartReady && <div style={{ position: 'absolute', inset: 0, zIndex: 10 }} onTouchEnd={enableChart} />}
               </div>
             </div>
           )}
@@ -392,18 +409,21 @@ export default function MarketDetail() {
           {stmtPriceHistory.length >= 1 && (
             <div style={{ marginTop: '1.25rem' }}>
               <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Statement Price History</h3>
-              <div style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }} tabIndex={-1}>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={formatHistory(stmtPriceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(stmtPriceHistory, market.outcomes))} minTickGap={40} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                  <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />
-                  <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
-                  {market.outcomes.map((o, i) => (
-                    <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+              <div style={{ position: 'relative', height: 180 }}>
+                <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={formatHistory(stmtPriceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(stmtPriceHistory, market.outcomes))} minTickGap={40} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                      {chartReady && <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />}
+                      <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
+                      {market.outcomes.map((o, i) => (
+                        <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                {!chartReady && <div style={{ position: 'absolute', inset: 0, zIndex: 10 }} onTouchEnd={enableChart} />}
               </div>
             </div>
           )}

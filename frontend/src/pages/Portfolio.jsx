@@ -95,7 +95,7 @@ export default function Portfolio() {
                   {markets.filter(m => m.creator_id === user?.id).map(m => (
                     <tr key={m.id}>
                       <td style={styles.td}><Link to={`/markets/${m.id}`} style={styles.posLink}>{m.question}</Link></td>
-                      <td style={styles.td}>{m.status}</td>
+                      <td style={styles.td}>{m.status.replace(/_/g, ' ')}</td>
                       <td style={styles.td}>{m.liquidity_cost?.toFixed(2)}</td>
                       <td style={styles.td}>{new Date(m.end_time).toLocaleDateString()}</td>
                     </tr>
@@ -126,7 +126,7 @@ export default function Portfolio() {
                   {positions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).map(p => (
                     <tr key={p.market_id}>
                       <td style={styles.td}><Link to={`/markets/${p.market_id}`} style={styles.posLink}>{p.question}</Link></td>
-                      <td style={styles.td}>{p.status}</td>
+                      <td style={styles.td}>{p.status.replace(/_/g, ' ')}</td>
                       <td style={styles.td}>
                         {p.outcomes.map((o, i) => (
                           <div key={i} style={{ fontSize: '0.85rem' }}>{o}: {Number(p.quantities[i]).toFixed(2)}</div>
