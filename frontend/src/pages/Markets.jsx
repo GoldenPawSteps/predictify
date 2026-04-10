@@ -33,8 +33,11 @@ function statusBadge(status) {
   return { background: colors[status] || '#f3f4f6', color: textColors[status] || '#374151' };
 }
 
+const expiredBadge = { background: '#fee2e2', color: '#b91c1c' };
+
 export default function Markets() {
   const [markets, setMarkets] = useState([]);
+  const [activeTag, setActiveTag] = useState(null);
   const [loading, setLoading] = useState(true);
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -45,6 +48,9 @@ export default function Markets() {
   }, []);
 
   function handleLogout() { logout(); navigate('/login'); }
+
+  const allTags = [...new Set(markets.flatMap(m => m.tags || []))].sort();
+  const filteredMarkets = activeTag ? markets.filter(m => (m.tags || []).includes(activeTag)) : markets;
 
   return (
     <div style={styles.container}>
@@ -62,6 +68,15 @@ export default function Markets() {
           <h1 style={styles.h1}>Prediction Markets</h1>
           <Link to="/markets/new" style={styles.createBtn}>+ Create Market</Link>
         </div>
+        {!loading && allTags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            {[null, ...allTags].map(t => (
+              <button key={t ?? '__all__'} onClick={() => setActiveTag(activeTag === t ? null : t)} style={{ background: t === activeTag ? '#4f46e5' : '#fff', color: t === activeTag ? '#fff' : '#374151', border: '1px solid ' + (t === activeTag ? '#4f46e5' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                {t === null ? 'All' : t}
+              </button>
+            ))}
+          </div>
+        )}
         {loading ? <div style={styles.empty}>Loading markets...</div> : markets.length === 0 ? (
           <div style={styles.empty}>
             <p>No markets yet.</p>
@@ -69,9 +84,9 @@ export default function Markets() {
           </div>
         ) : (
           <div style={styles.grid}>
-            {markets.map(m => (
+            {filteredMarkets.map(m => (
               <Link key={m.id} to={`/markets/${m.id}`} style={styles.card}>
-                <div style={{ ...styles.badge, ...statusBadge(m.status) }}>{m.status.replace('_', ' ')}</div>
+                {(() => { const exp = m.status === 'active' && new Date(m.end_time) <= new Date(); return <div style={{ ...styles.badge, ...(exp ? expiredBadge : statusBadge(m.status)) }}>{exp ? 'expired' : m.status.replace(/_/g, ' ')}</div>; })()}
                 <div style={styles.cardTitle}>{m.question}</div>
                 {m.outcomes.map((outcome, i) => (
                   <div key={i} style={styles.priceBar}>
@@ -85,8 +100,13 @@ export default function Markets() {
                   </div>
                 ))}
                 <div style={styles.meta}>
-                  <span>By {m.creator_username}</span> · <span>Ends {new Date(m.end_time).toLocaleDateString()}</span> · <span>β={m.liquidity_beta}</span>
+                  <span>By {m.creator_username}</span> · <span>Ends {new Date(m.end_time).toLocaleDateString()}</span> · <span>β={m.liquidity_beta}</span> · <span>Vol {(m.volume || 0).toFixed(2)}</span>
                 </div>
+                {m.tags && m.tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    {m.tags.map(t => <span key={t} style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: '20px', padding: '0.15rem 0.5rem', fontSize: '0.7rem', fontWeight: 600 }}>{t}</span>)}
+                  </div>
+                )}
               </Link>
             ))}
           </div>

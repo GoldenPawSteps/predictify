@@ -51,10 +51,23 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
 
+    let stmtPositions = [];
+    if (stmtResult.rows[0]) {
+      const spResult = await pool.query(
+        `SELECT sp.*, u.username
+         FROM statement_positions sp
+         JOIN users u ON sp.user_id = u.id
+         WHERE sp.statement_market_id = $1`,
+        [stmtResult.rows[0].id]
+      );
+      stmtPositions = spResult.rows;
+    }
+
     res.json({
       market,
       positions: positionsResult.rows,
       statement_market: stmtResult.rows[0] || null,
+      statement_positions: stmtPositions,
     });
   } catch (err) {
     console.error(err);
@@ -63,7 +76,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', authMiddleware, async (req, res) => {
-  const { question, outcomes, probabilities, liquidity_beta, end_time } = req.body;
+  const { question, description, tags, outcomes, probabilities, liquidity_beta, end_time } = req.body;
 
   if (!question || !outcomes || !probabilities || !liquidity_beta || !end_time) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -99,6 +112,9 @@ router.post('/', authMiddleware, async (req, res) => {
 
   const L = liquidityCost(normalizedProbs, liquidity_beta);
   const makerQuantities = new Array(outcomes.length).fill(0);
+  const sanitizedTags = Array.isArray(tags)
+    ? [...new Set(tags.map(t => String(t).trim().toLowerCase()).filter(t => t.length > 0 && t.length <= 50))].slice(0, 10)
+    : [];
 
   const client = await pool.connect();
   try {
@@ -118,10 +134,10 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Create market — initial escrow equals the liquidity cost L deposited by maker
     const marketResult = await client.query(
-      `INSERT INTO markets (creator_id, question, outcomes, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost, escrow)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO markets (creator_id, question, description, tags, outcomes, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost, escrow)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [req.user.id, question, outcomes, normalizedProbs, liquidity_beta, endDate, makerQuantities, L, L]
+      [req.user.id, question, description || null, sanitizedTags, outcomes, normalizedProbs, liquidity_beta, endDate, makerQuantities, L, L]
     );
     const market = marketResult.rows[0];
 

@@ -24,11 +24,24 @@ const styles = {
   empty: { color: '#888', textAlign: 'center', padding: '2rem', fontSize: '0.95rem' },
   ledgerPos: { color: '#166534' },
   ledgerNeg: { color: '#b91c1c' },
+  badge: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600' },
 };
+
+function statusBadge(status) {
+  const bg = { active: '#dcfce7', pending_resolution: '#fef9c3', resolved: '#e0e7ff', expired: '#fee2e2' };
+  const tc = { active: '#166534', pending_resolution: '#854d0e', resolved: '#3730a3', expired: '#b91c1c' };
+  return { background: bg[status] || '#f3f4f6', color: tc[status] || '#374151' };
+}
+
+function displayStatus(status, endTime) {
+  return status === 'active' && new Date(endTime) <= new Date() ? 'expired' : status;
+}
 
 export default function Portfolio() {
   const [markets, setMarkets] = useState([]);
   const [positions, setPositions] = useState([]);
+  const [stmtMarkets, setStmtMarkets] = useState([]);
+  const [stmtPositions, setStmtPositions] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user, logout, refreshUser } = useAuth();
@@ -37,15 +50,19 @@ export default function Portfolio() {
   useEffect(() => {
     async function load() {
       try {
-        const [, mRes, lRes, pRes] = await Promise.all([
+        const [, mRes, lRes, pRes, smRes, spRes] = await Promise.all([
           refreshUser(),
           api.get('/markets'),
           api.get('/portfolio/ledger').catch(() => ({ data: { ledger: [] } })),
           api.get('/portfolio/positions').catch(() => ({ data: { positions: [] } })),
+          api.get('/portfolio/statement-markets').catch(() => ({ data: { statement_markets: [] } })),
+          api.get('/portfolio/statement-positions').catch(() => ({ data: { positions: [] } })),
         ]);
         setMarkets(mRes.data.markets);
         setLedger(lRes.data.ledger || []);
         setPositions(pRes.data.positions || []);
+        setStmtMarkets(smRes.data.statement_markets || []);
+        setStmtPositions(spRes.data.positions || []);
       } finally {
         setLoading(false);
       }
@@ -54,6 +71,16 @@ export default function Portfolio() {
   }, []);
 
   function handleLogout() { logout(); navigate('/login'); }
+
+  const myMarketRows = [
+    ...markets.filter(m => m.creator_id === user?.id).map(m => ({ ...m, _type: 'market', _sortKey: m.created_at })),
+    ...stmtMarkets.map(sm => ({ ...sm, _type: 'statement', _sortKey: sm.created_at })),
+  ].sort((a, b) => new Date(b._sortKey) - new Date(a._sortKey));
+
+  const openPositionRows = [
+    ...positions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'market', _sortKey: p.updated_at, _link: `/markets/${p.market_id}` })),
+    ...stmtPositions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'statement', _sortKey: p.updated_at, _link: `/markets/${p.original_market_id}` })),
+  ].sort((a, b) => new Date(b._sortKey) - new Date(a._sortKey));
 
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>Loading...</div>;
 
@@ -78,26 +105,39 @@ export default function Portfolio() {
 
         <div style={styles.section}>
           <h2 style={styles.h2}>My Markets</h2>
-          {markets.filter(m => m.creator_id === user?.id).length === 0 ? (
+          {myMarketRows.length === 0 ? (
             <div style={styles.empty}>You haven't created any markets yet. <Link to="/markets/new">Create one!</Link></div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Question</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>L Cost</th>
-                    <th style={styles.th}>Ends</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Question</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Type</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Status</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>L Cost</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Vol</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Ends</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {markets.filter(m => m.creator_id === user?.id).map(m => (
-                    <tr key={m.id}>
-                      <td style={styles.td}><Link to={`/markets/${m.id}`} style={styles.posLink}>{m.question}</Link></td>
-                      <td style={styles.td}>{m.status.replace(/_/g, ' ')}</td>
-                      <td style={styles.td}>{m.liquidity_cost?.toFixed(2)}</td>
-                      <td style={styles.td}>{new Date(m.end_time).toLocaleDateString()}</td>
+                  {myMarketRows.map(row => row._type === 'market' ? (
+                    <tr key={row.id}>
+                      <td style={styles.td}><Link to={`/markets/${row.id}`} style={styles.posLink}>{row.question}</Link></td>
+                      <td style={styles.td}><span style={{ fontSize: '0.8rem', color: '#555' }}>market</span></td>
+                      <td style={styles.td}>{(() => { const s = displayStatus(row.status, row.end_time); return <span style={{ ...styles.badge, ...statusBadge(s) }}>{s.replace(/_/g, ' ')}</span>; })()}</td>
+                      <td style={styles.td}>{row.liquidity_cost?.toFixed(2)}</td>
+                      <td style={styles.td}>{(row.volume || 0).toFixed(2)}</td>
+                      <td style={styles.td}>{new Date(row.end_time).toLocaleDateString()}</td>
+                    </tr>
+                  ) : (
+                    <tr key={row.id}>
+                      <td style={styles.td}><Link to={`/markets/${row.original_market_id}`} style={styles.posLink}>{row.original_question}</Link></td>
+                      <td style={styles.td}><span style={{ fontSize: '0.8rem', color: '#7c3aed' }}>statement</span></td>
+                      <td style={styles.td}>{(() => { const s = displayStatus(row.status, row.end_time); return <span style={{ ...styles.badge, ...statusBadge(s) }}>{s.replace(/_/g, ' ')}</span>; })()}</td>
+                      <td style={styles.td}>{row.liquidity_cost?.toFixed(2)}</td>
+                      <td style={styles.td}>{(row.volume || 0).toFixed(2)}</td>
+                      <td style={styles.td}>{new Date(row.end_time).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -108,25 +148,27 @@ export default function Portfolio() {
 
         <div style={styles.section}>
           <h2 style={styles.h2}>Open Positions</h2>
-          {positions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).length === 0 ? (
+          {openPositionRows.length === 0 ? (
             <div style={styles.empty}>
               No open positions. <Link to="/markets" style={{ color: '#4f46e5' }}>Browse Markets →</Link>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Market</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Quantities</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Market</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Type</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Status</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Quantities</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).map(p => (
-                    <tr key={p.market_id}>
-                      <td style={styles.td}><Link to={`/markets/${p.market_id}`} style={styles.posLink}>{p.question}</Link></td>
-                      <td style={styles.td}>{p.status.replace(/_/g, ' ')}</td>
+                  {openPositionRows.map(p => (
+                    <tr key={p._type === 'market' ? p.market_id : p.statement_market_id}>
+                      <td style={styles.td}><Link to={p._link} style={styles.posLink}>{p.question}</Link></td>
+                      <td style={styles.td}><span style={{ fontSize: '0.8rem', color: p._type === 'statement' ? '#7c3aed' : '#555' }}>{p._type}</span></td>
+                      <td style={styles.td}>{(() => { const s = displayStatus(p.status, p.end_time); return <span style={{ ...styles.badge, ...statusBadge(s) }}>{s.replace(/_/g, ' ')}</span>; })()}</td>
                       <td style={styles.td}>
                         {p.outcomes.map((o, i) => (
                           <div key={i} style={{ fontSize: '0.85rem' }}>{o}: {Number(p.quantities[i]).toFixed(2)}</div>
@@ -143,13 +185,13 @@ export default function Portfolio() {
         {ledger.length > 0 && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Transaction History</h2>
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Date</th>
-                  <th style={styles.th}>Description</th>
-                  <th style={styles.th}>Amount</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Date</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Description</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Amount</th>
                 </tr>
               </thead>
               <tbody>

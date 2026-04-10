@@ -83,10 +83,10 @@ router.post('/:marketId', authMiddleware, async (req, res) => {
     // Deduct net cost from taker — funds held in market escrow until settlement
     await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [netCost, req.user.id]);
 
-    // Update market: new aggregate state q^m and escrow
+    // Update market: new aggregate state q^m, escrow, and volume
     await client.query(
-      'UPDATE markets SET maker_quantities = $1, escrow = escrow + $2 WHERE id = $3',
-      [new_maker_quantities, netCost, marketId]
+      'UPDATE markets SET maker_quantities = $1, escrow = escrow + $2, volume = volume + $3 WHERE id = $4',
+      [new_maker_quantities, netCost, Math.abs(netCost), marketId]
     );
 
     // Update taker position: q^t ← q^t + Δq

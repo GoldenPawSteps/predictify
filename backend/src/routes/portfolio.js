@@ -4,6 +4,44 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+router.get('/statement-markets', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT sm.*, m.question as original_question
+       FROM statement_markets sm
+       JOIN markets m ON sm.original_market_id = m.id
+       WHERE sm.creator_id = $1
+       ORDER BY sm.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ statement_markets: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/statement-positions', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT sp.quantities, sp.updated_at,
+              sm.id as statement_market_id, sm.original_market_id, sm.status, sm.end_time,
+              sm.probabilities, sm.liquidity_beta, sm.maker_quantities,
+              m.question, m.outcomes
+       FROM statement_positions sp
+       JOIN statement_markets sm ON sp.statement_market_id = sm.id
+       JOIN markets m ON sm.original_market_id = m.id
+       WHERE sp.user_id = $1
+       ORDER BY sp.updated_at DESC`,
+      [req.user.id]
+    );
+    res.json({ positions: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/positions', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(

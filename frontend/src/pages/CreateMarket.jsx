@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,16 +34,27 @@ const styles = {
   logoutBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' },
 };
 
+const DRAFT_KEY = 'createMarketDraft';
+
 export default function CreateMarket() {
-  const [question, setQuestion] = useState('');
-  const [outcomes, setOutcomes] = useState(['Yes', 'No']);
-  const [probabilities, setProbabilities] = useState([0.5, 0.5]);
-  const [beta, setBeta] = useState(10);
-  const [endTime, setEndTime] = useState('');
+  const saved = (() => { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY)) || {}; } catch { return {}; } })();
+  const [question, setQuestion] = useState(saved.question || '');
+  const [description, setDescription] = useState(saved.description || '');
+  const [outcomes, setOutcomes] = useState(saved.outcomes || ['Yes', 'No']);
+  const [probabilities, setProbabilities] = useState(saved.probabilities || [0.5, 0.5]);
+  const [beta, setBeta] = useState(saved.beta ?? 10);
+  const [endTime, setEndTime] = useState(saved.endTime || '');
+  const [tags, setTags] = useState(saved.tags || []);
+  const [tagInput, setTagInput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+
+  // Persist draft on every change
+  useEffect(() => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ question, description, tags, outcomes, probabilities, beta, endTime }));
+  }, [question, description, tags, outcomes, probabilities, beta, endTime]);
 
   const probSum = probabilities.reduce((a, b) => a + Number(b), 0);
   const normalizedProbs = probabilities.map(p => Number(p) / probSum);
@@ -83,11 +94,14 @@ export default function CreateMarket() {
     try {
       const res = await api.post('/markets', {
         question,
+        description: description.trim() || undefined,
+        tags,
         outcomes,
         probabilities: normalizedProbs,
         liquidity_beta: Number(beta),
         end_time: new Date(endTime).toISOString(),
       });
+      sessionStorage.removeItem(DRAFT_KEY);
       await refreshUser();
       navigate(`/markets/${res.data.market.id}`);
     } catch (err) {
@@ -120,6 +134,36 @@ export default function CreateMarket() {
           <form onSubmit={handleSubmit}>
             <label style={styles.label}>Question</label>
             <input style={styles.input} type="text" value={question} onChange={e => setQuestion(e.target.value)} placeholder="Will X happen by Y?" required />
+
+            <label style={styles.label}>Description <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></label>
+            <textarea style={{ ...styles.input, resize: 'vertical', minHeight: '4rem', fontFamily: 'inherit' }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Provide additional context or resolution criteria..." />
+
+            <label style={styles.label}>Tags <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></label>
+            {tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                {tags.map((t, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', background: '#e0e7ff', color: '#3730a3', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                    {t}
+                    <button type="button" onClick={() => setTags(tags.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3730a3', marginLeft: '0.3rem', padding: 0, fontSize: '0.85rem', lineHeight: 1 }}>✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <input
+              style={styles.input}
+              type="text"
+              value={tagInput}
+              onChange={e => setTagInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  const val = tagInput.trim().toLowerCase().replace(/,/g, '');
+                  if (val && !tags.includes(val) && tags.length < 10) setTags([...tags, val]);
+                  setTagInput('');
+                }
+              }}
+              placeholder="Type a tag and press Enter or comma"
+            />
 
             <label style={styles.label}>Outcomes &amp; Probabilities</label>
             <div style={{ marginBottom: '0.25rem', display: 'flex', gap: '0.5rem', fontSize: '0.8rem', color: '#888' }}>

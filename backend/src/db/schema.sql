@@ -13,6 +13,8 @@ CREATE TABLE markets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   creator_id UUID REFERENCES users(id) NOT NULL,
   question TEXT NOT NULL,
+  description TEXT,
+  tags TEXT[] DEFAULT '{}',
   outcomes TEXT[] NOT NULL,
   probabilities DOUBLE PRECISION[] NOT NULL,
   liquidity_beta DOUBLE PRECISION NOT NULL,
@@ -21,6 +23,7 @@ CREATE TABLE markets (
   maker_quantities DOUBLE PRECISION[] NOT NULL,
   liquidity_cost DOUBLE PRECISION NOT NULL,
   escrow DOUBLE PRECISION NOT NULL DEFAULT 0,
+  volume DOUBLE PRECISION NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -45,6 +48,7 @@ CREATE TABLE statement_markets (
   maker_quantities DOUBLE PRECISION[] NOT NULL,
   liquidity_cost DOUBLE PRECISION NOT NULL,
   escrow DOUBLE PRECISION NOT NULL DEFAULT 0,
+  volume DOUBLE PRECISION NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

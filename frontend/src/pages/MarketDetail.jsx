@@ -75,6 +75,8 @@ function statusBadge(status) {
   return { background: bg[status] || '#f3f4f6', color: tc[status] || '#374151' };
 }
 
+const expiredBadge = { background: '#fee2e2', color: '#b91c1c' };
+
 export default function MarketDetail() {
   const { id } = useParams();
   const [data, setData] = useState(null);
@@ -255,7 +257,7 @@ export default function MarketDetail() {
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>Loading...</div>;
   if (!data) return <div style={{ padding: '3rem', textAlign: 'center' }}>Market not found</div>;
 
-  const { market, positions, statement_market } = data;
+  const { market, positions, statement_market, statement_positions } = data;
   const prices = market.current_prices || [];
   const isActive = market.status === 'active';
   const isExpired = new Date(market.end_time) <= new Date();
@@ -286,10 +288,16 @@ export default function MarketDetail() {
         </div>
 
         <div style={styles.section}>
-          <div style={{ ...styles.badge, ...statusBadge(market.status) }}>{market.status.replace('_', ' ')}</div>
+          {(() => { const exp = isExpired && market.status === 'active'; return <div style={{ ...styles.badge, ...(exp ? expiredBadge : statusBadge(market.status)) }}>{exp ? 'expired' : market.status.replace(/_/g, ' ')}</div>; })()}
           <h1 style={styles.h1}>{market.question}</h1>
+          {market.description && <p style={{ color: '#555', fontSize: '0.95rem', margin: '0 0 0.75rem', lineHeight: 1.5 }}>{market.description}</p>}
+          {market.tags && market.tags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+              {market.tags.map(t => <span key={t} style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600 }}>{t}</span>)}
+            </div>
+          )}
           <div style={styles.meta}>
-            Created by {market.creator_username} · Ends {new Date(market.end_time).toLocaleString()} · β = {market.liquidity_beta}
+            Created by {market.creator_username} · Ends {new Date(market.end_time).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })} {new Date(market.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · β = {market.liquidity_beta} · Vol {(market.volume || 0).toFixed(2)}
           </div>
           {market.outcomes.map((outcome, i) => (
             <div key={i} style={styles.priceBar}>
@@ -358,12 +366,13 @@ export default function MarketDetail() {
         {positions.length > 0 && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Positions</h2>
+            <div style={{ overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>User</th>
-                  {market.outcomes.map((o, i) => <th key={i} style={styles.th}>{o}</th>)}
-                  <th style={styles.th}>Value (@current)</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>User</th>
+                  {market.outcomes.map((o, i) => <th key={i} style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>{o}</th>)}
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Value (@current)</th>
                 </tr>
               </thead>
               <tbody>
@@ -379,6 +388,7 @@ export default function MarketDetail() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -421,9 +431,9 @@ export default function MarketDetail() {
         {statement_market && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Statement Market</h2>
-            <div style={{ ...styles.badge, ...statusBadge(statement_market.status) }}>{statement_market.status}</div>
+            {(() => { const exp = statement_market.status === 'active' && new Date(statement_market.end_time) <= new Date(); return <div style={{ ...styles.badge, ...(exp ? expiredBadge : statusBadge(statement_market.status)) }}>{exp ? 'expired' : statement_market.status.replace(/_/g, ' ')}</div>; })()}
             <div style={styles.meta}>
-              Ends {new Date(statement_market.end_time).toLocaleString()} · β = {statement_market.liquidity_beta}
+              Ends {new Date(statement_market.end_time).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })} {new Date(statement_market.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · β = {statement_market.liquidity_beta} · Vol {(statement_market.volume || 0).toFixed(2)}
             </div>
             {market.outcomes.map((o, i) => {
               const sp = getLocalPrices(statement_market.maker_quantities, statement_market.probabilities, statement_market.liquidity_beta);
@@ -486,6 +496,38 @@ export default function MarketDetail() {
             {statement_market.status === 'active' && new Date(statement_market.end_time) <= new Date() && (
               <button style={styles.resolveBtn} onClick={handleResolve}>Resolve Statement Market</button>
             )}
+
+            {statement_positions && statement_positions.length > 0 && (() => {
+              const sp = getLocalPrices(statement_market.maker_quantities, statement_market.probabilities, statement_market.liquidity_beta);
+              return (
+                <div style={{ marginTop: '1.25rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Statement Positions</h3>
+                  <div style={{ overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>User</th>
+                        {market.outcomes.map((o, i) => <th key={i} style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>{o}</th>)}
+                        <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Value (@current)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statement_positions.map(pos => {
+                        const value = pos.quantities.reduce((s, q, i) => s + q * (sp[i] || 0), 0);
+                        return (
+                          <tr key={pos.id}>
+                            <td style={styles.td}>{pos.username}</td>
+                            {pos.quantities.map((q, i) => <td key={i} style={styles.td}>{q.toFixed(2)}</td>)}
+                            <td style={styles.td}>{value.toFixed(4)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

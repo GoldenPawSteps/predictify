@@ -37,5 +37,11 @@ app.use('/trades', require('./routes/trades'));
 app.use('/settlement', require('./routes/settlement'));
 app.use('/portfolio', require('./routes/portfolio'));
 
+const pool = require('./db');
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS description TEXT`)
+  .then(() => pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`))
+  .then(() => pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS volume DOUBLE PRECISION NOT NULL DEFAULT 0`))
+  .then(() => pool.query(`ALTER TABLE statement_markets ADD COLUMN IF NOT EXISTS volume DOUBLE PRECISION NOT NULL DEFAULT 0`))
+  .then(() => app.listen(PORT, () => console.log(`Server running on port ${PORT}`)))
+  .catch(err => { console.error('Migration failed', err); process.exit(1); });
