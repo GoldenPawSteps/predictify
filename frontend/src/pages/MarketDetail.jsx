@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api/client';
@@ -134,6 +134,39 @@ export default function MarketDetail() {
   function enableChart() {
     if (!chartReady)
       setTimeout(() => setChartReady(true), 100);
+  }
+
+  // Overlay touch handlers: only unlock chart for a tap, not a scroll.
+  // iOS fires synthetic mousemove after scroll gestures too, so we must
+  // keep the overlay in place whenever the touch involved significant movement.
+  const overlayTouchRef = useRef({ startX: 0, startY: 0, moved: false });
+  const chartWrapperRef = useRef(null);
+  const stmtChartWrapperRef = useRef(null);
+
+  // When chart is active, re-lock it whenever the user touches outside it.
+  useEffect(() => {
+    if (!chartReady) return;
+    const onOutsideTouch = (e) => {
+      const inMain = chartWrapperRef.current && chartWrapperRef.current.contains(e.target);
+      const inStmt = stmtChartWrapperRef.current && stmtChartWrapperRef.current.contains(e.target);
+      if (!inMain && !inStmt) setChartReady(false);
+    };
+    document.addEventListener('touchstart', onOutsideTouch, { passive: true });
+    return () => document.removeEventListener('touchstart', onOutsideTouch);
+  }, [chartReady]);
+  function onOverlayTouchStart(e) {
+    const t = e.changedTouches[0];
+    overlayTouchRef.current = { startX: t.clientX, startY: t.clientY, moved: false };
+  }
+  function onOverlayTouchMove(e) {
+    const t = e.changedTouches[0];
+    const dx = Math.abs(t.clientX - overlayTouchRef.current.startX);
+    const dy = Math.abs(t.clientY - overlayTouchRef.current.startY);
+    if (dx > 8 || dy > 8) overlayTouchRef.current.moved = true;
+  }
+  function onOverlayTouchEnd() {
+    if (!overlayTouchRef.current.moved) enableChart();
+    // If it was a scroll, keep overlay — do nothing.
   }
 
   function computeTradeCost(quantities, probabilities, beta, deltaQty, currentTakerQty) {
@@ -272,7 +305,7 @@ export default function MarketDetail() {
           {priceHistory.length >= 1 && (
             <div style={{ marginTop: '1.25rem' }}>
               <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Price History</h3>
-              <div style={{ position: 'relative', height: 180 }}>
+              <div ref={chartWrapperRef} style={{ position: 'relative', height: 180 }}>
                 <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
                   <ResponsiveContainer width="100%" height={180}>
                     <LineChart data={formatHistory(priceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
@@ -286,7 +319,7 @@ export default function MarketDetail() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                {!chartReady && <div style={{ position: 'absolute', inset: 0, zIndex: 10 }} onTouchEnd={enableChart} />}
+                {!chartReady && <div style={{ position: 'absolute', inset: 0, zIndex: 10 }} onTouchStart={onOverlayTouchStart} onTouchMove={onOverlayTouchMove} onTouchEnd={onOverlayTouchEnd} />}
               </div>
             </div>
           )}
@@ -409,7 +442,7 @@ export default function MarketDetail() {
           {stmtPriceHistory.length >= 1 && (
             <div style={{ marginTop: '1.25rem' }}>
               <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Statement Price History</h3>
-              <div style={{ position: 'relative', height: 180 }}>
+              <div ref={stmtChartWrapperRef} style={{ position: 'relative', height: 180 }}>
                 <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
                   <ResponsiveContainer width="100%" height={180}>
                     <LineChart data={formatHistory(stmtPriceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
@@ -423,7 +456,7 @@ export default function MarketDetail() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                {!chartReady && <div style={{ position: 'absolute', inset: 0, zIndex: 10 }} onTouchEnd={enableChart} />}
+                {!chartReady && <div style={{ position: 'absolute', inset: 0, zIndex: 10 }} onTouchStart={onOverlayTouchStart} onTouchMove={onOverlayTouchMove} onTouchEnd={onOverlayTouchEnd} />}
               </div>
             </div>
           )}
