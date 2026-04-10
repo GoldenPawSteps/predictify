@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const CHART_COLORS = ['#4f46e5', '#059669', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#be185d', '#16a34a'];
 
@@ -36,39 +37,40 @@ function getLocalPrices(quantities, probabilities, beta) {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#f0f2f5' },
+  container: { minHeight: '100vh', background: 'var(--page-bg)' },
   nav: { background: '#1a1a2e', padding: '0.75rem 1.25rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   navTitle: { color: '#fff', fontSize: '1.5rem', fontWeight: '700', textDecoration: 'none' },
   navLinks: { display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' },
   navLink: { color: '#ccc', textDecoration: 'none', fontSize: '0.9rem' },
   navUser: { color: '#a5b4fc', fontSize: '0.9rem' },
   main: { maxWidth: '900px', margin: '2rem auto', padding: '0 1rem' },
-  section: { background: '#fff', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: '1.5rem' },
-  h1: { fontSize: '1.4rem', fontWeight: '700', color: '#1a1a2e', marginTop: 0, marginBottom: '0.5rem' },
-  h2: { fontSize: '1.1rem', fontWeight: '600', color: '#333', marginTop: 0 },
+  section: { background: 'var(--surface)', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.12)', marginBottom: '1.5rem' },
+  h1: { fontSize: '1.4rem', fontWeight: '700', color: 'var(--text-primary)', marginTop: 0, marginBottom: '0.5rem' },
+  h2: { fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-secondary)', marginTop: 0 },
   badge: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', marginBottom: '1rem' },
-  meta: { fontSize: '0.85rem', color: '#666', marginBottom: '1rem' },
+  meta: { fontSize: '0.85rem', color: 'var(--text-faint2)', marginBottom: '1rem' },
   priceBar: { marginBottom: '0.75rem' },
-  priceLabelRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.9rem', color: '#333' },
-  progressTrack: { height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' },
+  priceLabelRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.9rem', color: 'var(--text-secondary)' },
+  progressTrack: { height: '8px', background: 'var(--progress-track)', borderRadius: '4px', overflow: 'hidden' },
   progressFill: { height: '100%', background: '#4f46e5', borderRadius: '4px', transition: 'width 0.3s' },
   inputRow: { display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' },
-  label: { flex: 1, fontSize: '0.9rem', color: '#333' },
-  numInput: { width: '120px', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' },
+  label: { flex: 1, fontSize: '0.9rem', color: 'var(--text-secondary)' },
+  numInput: { width: '120px', padding: '0.5rem', border: '1px solid var(--border-input)', borderRadius: '4px', fontSize: '1rem', background: 'var(--surface)', color: 'var(--text-primary)' },
   tradeBtn: { background: '#4f46e5', color: '#fff', border: 'none', padding: '0.65rem 1.5rem', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem' },
-  costBox: { background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.9rem' },
+  costBox: { background: 'var(--cost-box-bg)', border: '1px solid var(--cost-box-border)', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-secondary)' },
   errorBox: { background: '#fee2e2', color: '#b91c1c', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' },
   successBox: { background: '#f0fdf4', color: '#166534', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' },
-  th: { textAlign: 'left', padding: '0.5rem 0.75rem', borderBottom: '2px solid #e5e7eb', color: '#555', fontWeight: '600' },
-  td: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #f3f4f6', color: '#333' },
+  th: { textAlign: 'left', padding: '0.5rem 0.75rem', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' },
+  td: { padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' },
   stmtBtn: { background: '#7c3aed', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', marginTop: '1rem' },
   resolveBtn: { background: '#059669', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', marginTop: '0.5rem', marginLeft: '0.5rem' },
-  backLink: { color: '#4f46e5', textDecoration: 'none', fontSize: '0.9rem' },
+  backLink: { color: 'var(--link)', textDecoration: 'none', fontSize: '0.9rem' },
   logoutBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' },
-  stmtInput: { width: '100px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem', marginRight: '0.5rem' },
-  tabBar: { display: 'flex', borderBottom: '2px solid #e5e7eb', marginBottom: '1.5rem' },
-  tab: (active) => ({ background: 'none', border: 'none', borderBottom: active ? '2px solid #1a1a2e' : '2px solid transparent', marginBottom: '-2px', padding: '0.65rem 1.2rem', fontWeight: 600, fontSize: '0.95rem', color: active ? '#1a1a2e' : '#6b7280', cursor: 'pointer', whiteSpace: 'nowrap' }),
+  themeBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' },
+  stmtInput: { width: '100px', padding: '0.4rem', border: '1px solid var(--border-input)', borderRadius: '4px', fontSize: '1rem', marginRight: '0.5rem', background: 'var(--surface)', color: 'var(--text-primary)' },
+  tabBar: { display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1.5rem' },
+  tab: (active) => ({ background: 'none', border: 'none', borderBottom: active ? '2px solid var(--text-primary)' : '2px solid transparent', marginBottom: '-2px', padding: '0.65rem 1.2rem', fontWeight: 600, fontSize: '0.95rem', color: active ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }),
 };
 
 function statusBadge(status) {
@@ -106,6 +108,7 @@ export default function MarketDetail() {
   const [priceHistory, setPriceHistory] = useState([]);
   const [stmtPriceHistory, setStmtPriceHistory] = useState([]);
   const { user, logout, refreshUser } = useAuth();
+  const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   async function fetchData() {
@@ -286,6 +289,7 @@ export default function MarketDetail() {
           <Link to="/portfolio" style={styles.navLink}>Portfolio</Link>
           <span style={styles.navUser}>💰 {user?.balance?.toFixed(2)}</span>
           <span style={styles.navUser}>{user?.username}</span>
+          <button style={styles.themeBtn} onClick={toggleTheme} title={mode === 'auto' ? 'Auto (system)' : mode === 'light' ? 'Light' : 'Dark'}>{mode === 'auto' ? '💻' : mode === 'light' ? '☀️' : '🌙'}</button>
           <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
         </div>
       </nav>
@@ -309,7 +313,7 @@ export default function MarketDetail() {
           {market.description && <p style={{ color: '#555', fontSize: '0.95rem', margin: '0 0 0.75rem', lineHeight: 1.5 }}>{market.description}</p>}
           {market.tags && market.tags.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
-              {market.tags.map(t => <span key={t} style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600 }}>{t}</span>)}
+              {market.tags.map(t => <span key={t} style={{ background: 'var(--tag-bg)', color: 'var(--tag-text)', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600 }}>{t}</span>)}
             </div>
           )}
           <div style={styles.meta}>
@@ -328,7 +332,7 @@ export default function MarketDetail() {
           ))}
           {priceHistory.length >= 1 && (
             <div style={{ marginTop: '1.25rem' }}>
-              <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Price History</h3>
+              <h3 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>Price History</h3>
               <div ref={chartWrapperRef} style={{ position: 'relative', height: 180 }}>
                 <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
                   <ResponsiveContainer width="100%" height={180}>
@@ -415,13 +419,13 @@ export default function MarketDetail() {
         {canCreateStmt && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Create Statement Market</h2>
-            <p style={{ color: '#666', fontSize: '0.9rem' }}>Market has ended. Create a statement market to begin the resolution process.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Market has ended. Create a statement market to begin the resolution process.</p>
             {!showStmtForm ? (
               <button style={styles.stmtBtn} onClick={() => setShowStmtForm(true)}>Create Statement Market</button>
             ) : (
               <form onSubmit={handleCreateStatement}>
                 {stmtError && <div style={styles.errorBox}>{stmtError}</div>}
-                <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#555' }}>Statement Probabilities (your belief about true outcome):</div>
+                <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Statement Probabilities (your belief about true outcome):</div>
                 {market.outcomes.map((o, i) => (
                   <div key={i} style={styles.inputRow}>
                     <span style={styles.label}>{o}</span>
@@ -471,7 +475,7 @@ export default function MarketDetail() {
             })}
           {stmtPriceHistory.length >= 1 && (
             <div style={{ marginTop: '1.25rem' }}>
-              <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Statement Price History</h3>
+              <h3 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>Statement Price History</h3>
               <div ref={stmtChartWrapperRef} style={{ position: 'relative', height: 180 }}>
                 <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
                   <ResponsiveContainer width="100%" height={180}>
@@ -521,7 +525,7 @@ export default function MarketDetail() {
               const sp = getLocalPrices(statement_market.maker_quantities, statement_market.probabilities, statement_market.liquidity_beta);
               return (
                 <div style={{ marginTop: '1.25rem' }}>
-                  <h3 style={{ fontSize: '0.95rem', color: '#555', margin: '0 0 0.5rem' }}>Statement Positions</h3>
+                  <h3 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>Statement Positions</h3>
                   <div style={{ overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }}>
                   <table style={styles.table}>
                     <thead>

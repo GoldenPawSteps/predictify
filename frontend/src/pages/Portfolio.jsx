@@ -2,35 +2,37 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const styles = {
-  container: { minHeight: '100vh', background: '#f0f2f5' },
+  container: { minHeight: '100vh', background: 'var(--page-bg)' },
   nav: { background: '#1a1a2e', padding: '0.75rem 1.25rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   navTitle: { color: '#fff', fontSize: '1.5rem', fontWeight: '700', textDecoration: 'none' },
   navLinks: { display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' },
   navLink: { color: '#ccc', textDecoration: 'none', fontSize: '0.9rem' },
   navUser: { color: '#a5b4fc', fontSize: '0.9rem' },
   main: { maxWidth: '900px', margin: '2rem auto', padding: '0 1rem' },
-  section: { background: '#fff', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: '1.5rem' },
-  h1: { fontSize: '1.5rem', fontWeight: '700', color: '#1a1a2e', marginTop: 0 },
-  h2: { fontSize: '1.1rem', fontWeight: '600', color: '#333', marginTop: 0, marginBottom: '0.75rem' },
-  balanceBox: { background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' },
-  balanceAmount: { fontSize: '2rem', fontWeight: '700', color: '#1a1a2e' },
+  section: { background: 'var(--surface)', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.12)', marginBottom: '1.5rem' },
+  h1: { fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-primary)', marginTop: 0 },
+  h2: { fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-secondary)', marginTop: 0, marginBottom: '0.75rem' },
+  balanceBox: { background: 'var(--balance-bg)', border: '1px solid var(--balance-border)', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' },
+  balanceAmount: { fontSize: '2rem', fontWeight: '700', color: 'var(--text-primary)' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' },
-  th: { textAlign: 'left', padding: '0.5rem 0.75rem', borderBottom: '2px solid #e5e7eb', color: '#555', fontWeight: '600' },
-  td: { padding: '0.5rem 0.75rem', borderBottom: '1px solid #f3f4f6', color: '#333' },
-  posLink: { color: '#4f46e5', textDecoration: 'none', fontWeight: '500' },
+  th: { textAlign: 'left', padding: '0.5rem 0.75rem', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' },
+  td: { padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' },
+  posLink: { color: 'var(--link)', textDecoration: 'none', fontWeight: '500' },
   logoutBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' },
-  empty: { color: '#888', textAlign: 'center', padding: '2rem', fontSize: '0.95rem' },
+  themeBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' },
+  empty: { color: 'var(--text-faint)', textAlign: 'center', padding: '2rem', fontSize: '0.95rem' },
   ledgerPos: { color: '#166534' },
   ledgerNeg: { color: '#b91c1c' },
   badge: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600' },
   ctrlRow: { display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' },
-  ctrlLabel: { fontSize: '0.75rem', color: '#666', fontWeight: 600 },
-  pill: (active, color) => ({ background: active ? color : '#fff', color: active ? '#fff' : '#374151', border: '1px solid ' + (active ? color : '#d1d5db'), borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }),
-  searchInput: { width: '100%', padding: '0.45rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '16px', boxSizing: 'border-box', marginBottom: '0.6rem' },
-  tabBar: { display: 'flex', borderBottom: '2px solid #e5e7eb', marginBottom: '1.5rem', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' },
-  tab: (active) => ({ background: 'none', border: 'none', borderBottom: active ? '2px solid #1a1a2e' : '2px solid transparent', marginBottom: '-2px', padding: '0.65rem 1.2rem', fontWeight: 600, fontSize: '0.95rem', color: active ? '#1a1a2e' : '#6b7280', cursor: 'pointer', whiteSpace: 'nowrap' }),
+  ctrlLabel: { fontSize: '0.75rem', color: 'var(--text-faint2)', fontWeight: 600 },
+  pill: (active, color) => ({ background: active ? color : 'var(--pill-bg)', color: active ? '#fff' : 'var(--pill-text)', border: '1px solid ' + (active ? color : 'var(--pill-border)'), borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }),
+  searchInput: { width: '100%', padding: '0.45rem 0.75rem', border: '1px solid var(--border-input2)', borderRadius: '6px', fontSize: '16px', boxSizing: 'border-box', marginBottom: '0.6rem', background: 'var(--surface)', color: 'var(--text-primary)' },
+  tabBar: { display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' },
+  tab: (active) => ({ background: 'none', border: 'none', borderBottom: active ? '2px solid var(--text-primary)' : '2px solid transparent', marginBottom: '-2px', padding: '0.65rem 1.2rem', fontWeight: 600, fontSize: '0.95rem', color: active ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }),
 };
 
 function statusBadge(status) {
@@ -51,6 +53,7 @@ export default function Portfolio() {
   const [ledger, setLedger] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user, logout, refreshUser } = useAuth();
+  const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -176,6 +179,7 @@ export default function Portfolio() {
         <div style={styles.navLinks}>
           <Link to="/markets" style={styles.navLink}>Markets</Link>
           <span style={styles.navUser}>{user?.username}</span>
+          <button style={styles.themeBtn} onClick={toggleTheme} title={mode === 'auto' ? 'Auto (system)' : mode === 'light' ? 'Light' : 'Dark'}>{mode === 'auto' ? '💻' : mode === 'light' ? '☀️' : '🌙'}</button>
           <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
         </div>
       </nav>

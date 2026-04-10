@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const styles = {
-  container: { minHeight: '100vh', background: '#f0f2f5' },
+  container: { minHeight: '100vh', background: 'var(--page-bg)' },
   nav: { background: '#1a1a2e', padding: '0.75rem 1.25rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   navTitle: { color: '#fff', fontSize: '1.5rem', fontWeight: '700', textDecoration: 'none' },
   navLinks: { display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' },
@@ -12,19 +13,20 @@ const styles = {
   navUser: { color: '#a5b4fc', fontSize: '0.9rem' },
   main: { maxWidth: '1100px', margin: '0 auto', padding: '2rem' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
-  h1: { fontSize: '1.75rem', fontWeight: '700', color: '#1a1a2e', margin: 0 },
+  h1: { fontSize: '1.75rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 },
   createBtn: { background: '#4f46e5', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', textDecoration: 'none', fontSize: '0.95rem' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' },
-  card: { background: '#fff', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'box-shadow 0.2s', display: 'block', textDecoration: 'none', color: 'inherit' },
-  cardTitle: { fontSize: '1.1rem', fontWeight: '600', color: '#1a1a2e', marginBottom: '0.5rem' },
+  card: { background: 'var(--surface)', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.12)', cursor: 'pointer', transition: 'box-shadow 0.2s', display: 'block', textDecoration: 'none', color: 'inherit' },
+  cardTitle: { fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.5rem' },
   badge: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', marginBottom: '0.75rem' },
   priceBar: { marginBottom: '0.5rem' },
-  priceLabelRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem', fontSize: '0.85rem', color: '#555' },
-  progressTrack: { height: '6px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' },
+  priceLabelRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem', fontSize: '0.85rem', color: 'var(--text-muted)' },
+  progressTrack: { height: '6px', background: 'var(--progress-track)', borderRadius: '3px', overflow: 'hidden' },
   progressFill: { height: '100%', background: '#4f46e5', borderRadius: '3px' },
-  meta: { marginTop: '0.75rem', fontSize: '0.8rem', color: '#888' },
-  empty: { textAlign: 'center', padding: '4rem', color: '#888' },
+  meta: { marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-faint)' },
+  empty: { textAlign: 'center', padding: '4rem', color: 'var(--text-faint)' },
   logoutBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' },
+  themeBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' },
 };
 
 function statusBadge(status) {
@@ -45,6 +47,7 @@ export default function Markets() {
   const creatorFilter = searchParams.get('creator') || null;
   const searchQuery = searchParams.get('q') || '';
   const { user, logout, refreshUser } = useAuth();
+  const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   function setActiveTag(tag) {
@@ -104,6 +107,7 @@ export default function Markets() {
           <Link to="/portfolio" style={styles.navLink}>Portfolio</Link>
           <span style={styles.navUser}>💰 {user?.balance?.toFixed(2)}</span>
           <span style={styles.navUser}>{user?.username}</span>
+          <button style={styles.themeBtn} onClick={toggleTheme} title={mode === 'auto' ? 'Auto (system)' : mode === 'light' ? 'Light' : 'Dark'}>{mode === 'auto' ? '💻' : mode === 'light' ? '☀️' : '🌙'}</button>
           <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
         </div>
       </nav>
@@ -120,20 +124,20 @@ export default function Markets() {
               placeholder="Search markets..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              style={{ width: '100%', padding: '0.55rem 0.9rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '16px', boxSizing: 'border-box', outline: 'none' }}
+              style={{ width: '100%', padding: '0.55rem 0.9rem', border: '1px solid var(--border-input2)', borderRadius: '6px', fontSize: '16px', boxSizing: 'border-box', outline: 'none', background: 'var(--surface)', color: 'var(--text-primary)' }}
             />
             {/* Sort + Status + Creator row */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Sort:</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-faint2)', fontWeight: 600 }}>Sort:</span>
                 {[['newest', 'Newest'], ['oldest', 'Oldest'], ['ending_soon', 'Ending Soon'], ['volume', 'Volume']].map(([key, label]) => (
-                  <button key={key} onClick={() => setSortKey(key)} style={{ background: sortKey === key ? '#1a1a2e' : '#fff', color: sortKey === key ? '#fff' : '#374151', border: '1px solid ' + (sortKey === key ? '#1a1a2e' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>{label}</button>
+                  <button key={key} onClick={() => setSortKey(key)} style={{ background: sortKey === key ? '#1a1a2e' : 'var(--pill-bg)', color: sortKey === key ? '#fff' : 'var(--pill-text)', border: '1px solid ' + (sortKey === key ? '#1a1a2e' : 'var(--pill-border)'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>{label}</button>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Status:</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-faint2)', fontWeight: 600 }}>Status:</span>
                 {[null, 'active', 'expired', 'pending_resolution', 'resolved'].map(s => (
-                  <button key={s ?? '__all__'} onClick={() => setStatusFilter(statusFilter === s ? null : s)} style={{ background: statusFilter === s ? '#1a1a2e' : '#fff', color: statusFilter === s ? '#fff' : '#374151', border: '1px solid ' + (statusFilter === s ? '#1a1a2e' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                  <button key={s ?? '__all__'} onClick={() => setStatusFilter(statusFilter === s ? null : s)} style={{ background: statusFilter === s ? '#1a1a2e' : 'var(--pill-bg)', color: statusFilter === s ? '#fff' : 'var(--pill-text)', border: '1px solid ' + (statusFilter === s ? '#1a1a2e' : 'var(--pill-border)'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
                     {s === null ? 'All' : s.replace(/_/g, ' ')}
                   </button>
                 ))}
@@ -143,9 +147,9 @@ export default function Markets() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
               {allTags.length > 0 && (
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Tag:</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-faint2)', fontWeight: 600 }}>Tag:</span>
                   {[null, ...allTags].map(t => (
-                    <button key={t ?? '__all__'} onClick={() => setActiveTag(activeTag === t ? null : t)} style={{ background: t === activeTag ? '#4f46e5' : '#fff', color: t === activeTag ? '#fff' : '#374151', border: '1px solid ' + (t === activeTag ? '#4f46e5' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                    <button key={t ?? '__all__'} onClick={() => setActiveTag(activeTag === t ? null : t)} style={{ background: t === activeTag ? '#4f46e5' : 'var(--pill-bg)', color: t === activeTag ? '#fff' : 'var(--pill-text)', border: '1px solid ' + (t === activeTag ? '#4f46e5' : 'var(--pill-border)'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
                       {t === null ? 'All' : t}
                     </button>
                   ))}
@@ -153,9 +157,9 @@ export default function Markets() {
               )}
               {allCreators.length > 1 && (
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Creator:</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-faint2)', fontWeight: 600 }}>Creator:</span>
                   {[null, ...allCreators].map(c => (
-                    <button key={c ?? '__all__'} onClick={() => setCreatorFilter(creatorFilter === c ? null : c)} style={{ background: creatorFilter === c ? '#059669' : '#fff', color: creatorFilter === c ? '#fff' : '#374151', border: '1px solid ' + (creatorFilter === c ? '#059669' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                    <button key={c ?? '__all__'} onClick={() => setCreatorFilter(creatorFilter === c ? null : c)} style={{ background: creatorFilter === c ? '#059669' : 'var(--pill-bg)', color: creatorFilter === c ? '#fff' : 'var(--pill-text)', border: '1px solid ' + (creatorFilter === c ? '#059669' : 'var(--pill-border)'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
                       {c === null ? 'All' : c}
                     </button>
                   ))}
@@ -191,7 +195,7 @@ export default function Markets() {
                 </div>
                 {m.tags && m.tags.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
-                    {m.tags.map(t => <span key={t} style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: '20px', padding: '0.15rem 0.5rem', fontSize: '0.7rem', fontWeight: 600 }}>{t}</span>)}
+                    {m.tags.map(t => <span key={t} style={{ background: 'var(--tag-bg)', color: 'var(--tag-text)', borderRadius: '20px', padding: '0.15rem 0.5rem', fontSize: '0.7rem', fontWeight: 600 }}>{t}</span>)}
                   </div>
                 )}
               </Link>

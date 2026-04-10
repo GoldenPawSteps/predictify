@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const styles = {
-  container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' },
-  card: { background: '#fff', padding: '2rem', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px' },
-  title: { margin: '0 0 1.5rem', fontSize: '1.75rem', fontWeight: '700', color: '#1a1a2e' },
-  label: { display: 'block', marginBottom: '0.25rem', fontWeight: '500', color: '#333' },
-  input: { width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem', boxSizing: 'border-box', marginBottom: '1rem' },
+  container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--page-bg)' },
+  card: { background: 'var(--surface)', padding: '2rem', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', width: '100%', maxWidth: '400px' },
+  title: { margin: '0 0 1.5rem', fontSize: '1.75rem', fontWeight: '700', color: 'var(--text-primary)' },
+  label: { display: 'block', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--text-secondary)' },
+  input: { width: '100%', padding: '0.6rem 0.8rem', border: '1px solid var(--border-input)', borderRadius: '4px', fontSize: '1rem', boxSizing: 'border-box', marginBottom: '1rem', background: 'var(--surface)', color: 'var(--text-primary)' },
   button: { width: '100%', padding: '0.75rem', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
   error: { background: '#fee2e2', color: '#b91c1c', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem', fontSize: '0.9rem' },
-  link: { marginTop: '1rem', textAlign: 'center', color: '#666', fontSize: '0.9rem' },
+  link: { marginTop: '1rem', textAlign: 'center', color: 'var(--text-faint2)', fontSize: '0.9rem' },
 };
 
 export default function Login() {
@@ -19,6 +20,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -37,6 +39,7 @@ export default function Login() {
 
   return (
     <div style={styles.container}>
+      <button onClick={toggleTheme} title={mode === 'auto' ? 'Auto (system)' : mode === 'light' ? 'Light' : 'Dark'} style={{ position: 'fixed', top: '1rem', right: '1rem', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: '6px', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '1rem' }}>{mode === 'auto' ? '💻' : mode === 'light' ? '☀️' : '🌙'}</button>
       <div style={styles.card}>
         <h1 style={styles.title}>🎯 Predictify</h1>
         <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', color: '#333' }}>Sign In</h2>

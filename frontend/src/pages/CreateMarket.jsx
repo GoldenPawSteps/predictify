@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 function liquidityCost(probabilities, beta) {
   const minP = Math.min(...probabilities);
@@ -10,28 +11,29 @@ function liquidityCost(probabilities, beta) {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#f0f2f5' },
+  container: { minHeight: '100vh', background: 'var(--page-bg)' },
   nav: { background: '#1a1a2e', padding: '0.75rem 1.25rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' },
   navTitle: { color: '#fff', fontSize: '1.5rem', fontWeight: '700', textDecoration: 'none' },
   navLinks: { display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' },
   navLink: { color: '#ccc', textDecoration: 'none', fontSize: '0.9rem' },
   navUser: { color: '#a5b4fc', fontSize: '0.9rem' },
   main: { maxWidth: '680px', margin: '2rem auto', padding: '0 1rem' },
-  card: { background: '#fff', borderRadius: '8px', padding: '1.25rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' },
-  h1: { fontSize: '1.5rem', fontWeight: '700', color: '#1a1a2e', marginTop: 0 },
-  label: { display: 'block', marginBottom: '0.25rem', fontWeight: '500', color: '#333', fontSize: '0.95rem' },
-  input: { width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem', boxSizing: 'border-box', marginBottom: '1rem' },
+  card: { background: 'var(--surface)', borderRadius: '8px', padding: '1.25rem', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' },
+  h1: { fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-primary)', marginTop: 0 },
+  label: { display: 'block', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--text-secondary)', fontSize: '0.95rem' },
+  input: { width: '100%', padding: '0.6rem 0.8rem', border: '1px solid var(--border-input)', borderRadius: '4px', fontSize: '1rem', boxSizing: 'border-box', marginBottom: '1rem', background: 'var(--surface)', color: 'var(--text-primary)' },
   row: { display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' },
-  outcomeInput: { flex: 2, padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' },
-  probInput: { flex: 1, padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' },
+  outcomeInput: { flex: 2, padding: '0.5rem', border: '1px solid var(--border-input)', borderRadius: '4px', fontSize: '1rem', background: 'var(--surface)', color: 'var(--text-primary)' },
+  probInput: { flex: 1, padding: '0.5rem', border: '1px solid var(--border-input)', borderRadius: '4px', fontSize: '1rem', background: 'var(--surface)', color: 'var(--text-primary)' },
   removeBtn: { background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: '4px', padding: '0.4rem 0.7rem', cursor: 'pointer', fontWeight: '600', flexShrink: 0 },
   addBtn: { background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: '4px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: '600', marginBottom: '1.5rem' },
   infoBox: { background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '1rem', marginBottom: '1rem' },
   warnBox: { background: '#fef9c3', border: '1px solid #fde047', borderRadius: '6px', padding: '1rem', marginBottom: '1rem' },
   errorBox: { background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '1rem', marginBottom: '1rem', color: '#b91c1c' },
   submitBtn: { background: '#4f46e5', color: '#fff', border: 'none', padding: '0.75rem 2rem', borderRadius: '6px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%' },
-  backLink: { color: '#4f46e5', textDecoration: 'none', fontSize: '0.9rem' },
+  backLink: { color: 'var(--link)', textDecoration: 'none', fontSize: '0.9rem' },
   logoutBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' },
+  themeBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' },
 };
 
 const DRAFT_KEY = 'createMarketDraft';
@@ -49,6 +51,7 @@ export default function CreateMarket() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, logout, refreshUser } = useAuth();
+  const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   // Persist draft on every change
@@ -121,6 +124,7 @@ export default function CreateMarket() {
           <Link to="/portfolio" style={styles.navLink}>Portfolio</Link>
           <span style={styles.navUser}>💰 {user?.balance?.toFixed(2)}</span>
           <span style={styles.navUser}>{user?.username}</span>
+          <button style={styles.themeBtn} onClick={toggleTheme} title={mode === 'auto' ? 'Auto (system)' : mode === 'light' ? 'Light' : 'Dark'}>{mode === 'auto' ? '💻' : mode === 'light' ? '☀️' : '🌙'}</button>
           <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
         </div>
       </nav>
@@ -135,16 +139,16 @@ export default function CreateMarket() {
             <label style={styles.label}>Question</label>
             <input style={styles.input} type="text" value={question} onChange={e => setQuestion(e.target.value)} placeholder="Will X happen by Y?" required />
 
-            <label style={styles.label}>Description <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></label>
+            <label style={styles.label}>Description <span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>(optional)</span></label>
             <textarea style={{ ...styles.input, resize: 'vertical', minHeight: '4rem', fontFamily: 'inherit' }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Provide additional context or resolution criteria..." />
 
-            <label style={styles.label}>Tags <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></label>
+            <label style={styles.label}>Tags <span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>(optional)</span></label>
             {tags.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
                 {tags.map((t, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', background: '#e0e7ff', color: '#3730a3', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--tag-bg)', color: 'var(--tag-text)', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.8rem', fontWeight: 600 }}>
                     {t}
-                    <button type="button" onClick={() => setTags(tags.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3730a3', marginLeft: '0.3rem', padding: 0, fontSize: '0.85rem', lineHeight: 1 }}>✕</button>
+                    <button type="button" onClick={() => setTags(tags.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tag-text)', marginLeft: '0.3rem', padding: 0, fontSize: '0.85rem', lineHeight: 1 }}>✕</button>
                   </span>
                 ))}
               </div>
@@ -166,7 +170,7 @@ export default function CreateMarket() {
             />
 
             <label style={styles.label}>Outcomes &amp; Probabilities</label>
-            <div style={{ marginBottom: '0.25rem', display: 'flex', gap: '0.5rem', fontSize: '0.8rem', color: '#888' }}>
+            <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-faint)' }}>
               <span style={{ flex: 2 }}>Outcome</span>
               <span style={{ flex: 1 }}>Probability</span>
               <span style={{ width: '40px' }}></span>
