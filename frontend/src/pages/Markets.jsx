@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -37,10 +37,31 @@ const expiredBadge = { background: '#fee2e2', color: '#b91c1c' };
 
 export default function Markets() {
   const [markets, setMarkets] = useState([]);
-  const [activeTag, setActiveTag] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTag = searchParams.get('tag') || null;
+  const sortKey = searchParams.get('sort') || 'newest';
+  const statusFilter = searchParams.get('status') || null;
+  const creatorFilter = searchParams.get('creator') || null;
+  const searchQuery = searchParams.get('q') || '';
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+
+  function setActiveTag(tag) {
+    setSearchParams(p => { const n = new URLSearchParams(p); tag ? n.set('tag', tag) : n.delete('tag'); return n; }, { replace: false });
+  }
+  function setSortKey(key) {
+    setSearchParams(p => { const n = new URLSearchParams(p); key === 'newest' ? n.delete('sort') : n.set('sort', key); return n; }, { replace: false });
+  }
+  function setStatusFilter(s) {
+    setSearchParams(p => { const n = new URLSearchParams(p); s ? n.set('status', s) : n.delete('status'); return n; }, { replace: false });
+  }
+  function setCreatorFilter(c) {
+    setSearchParams(p => { const n = new URLSearchParams(p); c ? n.set('creator', c) : n.delete('creator'); return n; }, { replace: false });
+  }
+  function setSearchQuery(q) {
+    setSearchParams(p => { const n = new URLSearchParams(p); q ? n.set('q', q) : n.delete('q'); return n; }, { replace: false });
+  }
 
   useEffect(() => {
     refreshUser();
@@ -50,7 +71,30 @@ export default function Markets() {
   function handleLogout() { logout(); navigate('/login'); }
 
   const allTags = [...new Set(markets.flatMap(m => m.tags || []))].sort();
-  const filteredMarkets = activeTag ? markets.filter(m => (m.tags || []).includes(activeTag)) : markets;
+  const allCreators = [...new Set(markets.map(m => m.creator_username))].sort();
+
+  const filteredMarkets = [...markets]
+    .filter(m => {
+      if (activeTag && !(m.tags || []).includes(activeTag)) return false;
+      if (statusFilter) {
+        const isExpired = m.status === 'active' && new Date(m.end_time) <= new Date();
+        const effectiveStatus = isExpired ? 'expired' : m.status;
+        if (effectiveStatus !== statusFilter) return false;
+      }
+      if (creatorFilter && m.creator_username !== creatorFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!m.question.toLowerCase().includes(q) && !(m.description || '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortKey === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+      if (sortKey === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+      if (sortKey === 'ending_soon') return new Date(a.end_time) - new Date(b.end_time);
+      if (sortKey === 'volume') return (b.volume || 0) - (a.volume || 0);
+      return 0;
+    });
 
   return (
     <div style={styles.container}>
@@ -68,13 +112,56 @@ export default function Markets() {
           <h1 style={styles.h1}>Prediction Markets</h1>
           <Link to="/markets/new" style={styles.createBtn}>+ Create Market</Link>
         </div>
-        {!loading && allTags.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
-            {[null, ...allTags].map(t => (
-              <button key={t ?? '__all__'} onClick={() => setActiveTag(activeTag === t ? null : t)} style={{ background: t === activeTag ? '#4f46e5' : '#fff', color: t === activeTag ? '#fff' : '#374151', border: '1px solid ' + (t === activeTag ? '#4f46e5' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
-                {t === null ? 'All' : t}
-              </button>
-            ))}
+        {!loading && (
+          <div style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {/* Search bar */}
+            <input
+              type="search"
+              placeholder="Search markets..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ width: '100%', padding: '0.55rem 0.9rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '16px', boxSizing: 'border-box', outline: 'none' }}
+            />
+            {/* Sort + Status + Creator row */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Sort:</span>
+                {[['newest', 'Newest'], ['oldest', 'Oldest'], ['ending_soon', 'Ending Soon'], ['volume', 'Volume']].map(([key, label]) => (
+                  <button key={key} onClick={() => setSortKey(key)} style={{ background: sortKey === key ? '#1a1a2e' : '#fff', color: sortKey === key ? '#fff' : '#374151', border: '1px solid ' + (sortKey === key ? '#1a1a2e' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>{label}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Status:</span>
+                {[null, 'active', 'expired', 'pending_resolution', 'resolved'].map(s => (
+                  <button key={s ?? '__all__'} onClick={() => setStatusFilter(statusFilter === s ? null : s)} style={{ background: statusFilter === s ? '#1a1a2e' : '#fff', color: statusFilter === s ? '#fff' : '#374151', border: '1px solid ' + (statusFilter === s ? '#1a1a2e' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                    {s === null ? 'All' : s.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Tag + Creator row */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+              {allTags.length > 0 && (
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Tag:</span>
+                  {[null, ...allTags].map(t => (
+                    <button key={t ?? '__all__'} onClick={() => setActiveTag(activeTag === t ? null : t)} style={{ background: t === activeTag ? '#4f46e5' : '#fff', color: t === activeTag ? '#fff' : '#374151', border: '1px solid ' + (t === activeTag ? '#4f46e5' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                      {t === null ? 'All' : t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {allCreators.length > 1 && (
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 600 }}>Creator:</span>
+                  {[null, ...allCreators].map(c => (
+                    <button key={c ?? '__all__'} onClick={() => setCreatorFilter(creatorFilter === c ? null : c)} style={{ background: creatorFilter === c ? '#059669' : '#fff', color: creatorFilter === c ? '#fff' : '#374151', border: '1px solid ' + (creatorFilter === c ? '#059669' : '#d1d5db'), borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                      {c === null ? 'All' : c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
         {loading ? <div style={styles.empty}>Loading markets...</div> : markets.length === 0 ? (
