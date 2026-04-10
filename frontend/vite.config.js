@@ -9,12 +9,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    proxy: {
-      '/auth': backendUrl,
-      '/markets': backendUrl,
-      '/trades': backendUrl,
-      '/settlement': backendUrl,
-      '/portfolio/': backendUrl,
-    }
+    proxy: Object.fromEntries(
+      ['/auth', '/markets', '/trades', '/settlement', '/portfolio/'].map(route => [
+        route,
+        {
+          target: backendUrl,
+          bypass: (req) => {
+            const accept = req.headers['accept'] || '';
+            if (accept.includes('text/html')) return '/index.html';
+          },
+        },
+      ])
+    ),
   }
 });
