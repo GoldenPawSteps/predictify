@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -67,6 +67,8 @@ const styles = {
   backLink: { color: '#4f46e5', textDecoration: 'none', fontSize: '0.9rem' },
   logoutBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' },
   stmtInput: { width: '100px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem', marginRight: '0.5rem' },
+  tabBar: { display: 'flex', borderBottom: '2px solid #e5e7eb', marginBottom: '1.5rem' },
+  tab: (active) => ({ background: 'none', border: 'none', borderBottom: active ? '2px solid #1a1a2e' : '2px solid transparent', marginBottom: '-2px', padding: '0.65rem 1.2rem', fontWeight: 600, fontSize: '0.95rem', color: active ? '#1a1a2e' : '#6b7280', cursor: 'pointer', whiteSpace: 'nowrap' }),
 };
 
 function statusBadge(status) {
@@ -95,6 +97,11 @@ export default function MarketDetail() {
   const [stmtTradeError, setStmtTradeError] = useState('');
   const [stmtTradeSuccess, setStmtTradeSuccess] = useState('');
   const [stmtTrading, setStmtTrading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'market';
+  function setActiveTab(tab) {
+    setSearchParams(p => { const n = new URLSearchParams(p); tab === 'market' ? n.delete('tab') : n.set('tab', tab); return n; }, { replace: true });
+  }
   const [chartReady, setChartReady] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
   const [stmtPriceHistory, setStmtPriceHistory] = useState([]);
@@ -287,6 +294,15 @@ export default function MarketDetail() {
           <span style={{ ...styles.backLink, cursor: 'pointer' }} onClick={() => navigate(-1)}>← Back</span>
         </div>
 
+        {isExpired && (
+          <div style={styles.tabBar}>
+            <button style={styles.tab(activeTab === 'market')} onClick={() => setActiveTab('market')}>Market</button>
+            <button style={styles.tab(activeTab === 'statement')} onClick={() => setActiveTab('statement')}>Statement</button>
+          </div>
+        )}
+
+        {(!isExpired || activeTab === 'market') && (<>
+
         <div style={styles.section}>
           {(() => { const exp = isExpired && market.status === 'active'; return <div style={{ ...styles.badge, ...(exp ? expiredBadge : statusBadge(market.status)) }}>{exp ? 'expired' : market.status.replace(/_/g, ' ')}</div>; })()}
           <h1 style={styles.h1}>{market.question}</h1>
@@ -392,6 +408,10 @@ export default function MarketDetail() {
           </div>
         )}
 
+        </>)}
+
+        {isExpired && activeTab === 'statement' && (<>
+
         {canCreateStmt && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Create Statement Market</h2>
@@ -433,7 +453,7 @@ export default function MarketDetail() {
             <h2 style={styles.h2}>Statement Market</h2>
             {(() => { const exp = statement_market.status === 'active' && new Date(statement_market.end_time) <= new Date(); return <div style={{ ...styles.badge, ...(exp ? expiredBadge : statusBadge(statement_market.status)) }}>{exp ? 'expired' : statement_market.status.replace(/_/g, ' ')}</div>; })()}
             <div style={styles.meta}>
-              Ends {new Date(statement_market.end_time).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })} {new Date(statement_market.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · β = {statement_market.liquidity_beta} · Vol {(statement_market.volume || 0).toFixed(2)}
+              Created by {statement_market.creator_username} · Ends {new Date(statement_market.end_time).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })} {new Date(statement_market.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · β = {statement_market.liquidity_beta} · Vol {(statement_market.volume || 0).toFixed(2)}
             </div>
             {market.outcomes.map((o, i) => {
               const sp = getLocalPrices(statement_market.maker_quantities, statement_market.probabilities, statement_market.liquidity_beta);
@@ -530,6 +550,8 @@ export default function MarketDetail() {
             })()}
           </div>
         )}
+
+        </>)}
       </div>
     </div>
   );

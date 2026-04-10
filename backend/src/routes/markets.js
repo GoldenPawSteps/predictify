@@ -47,7 +47,11 @@ router.get('/:id', async (req, res) => {
 
     // Check for statement market
     const stmtResult = await pool.query(
-      'SELECT * FROM statement_markets WHERE original_market_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT sm.*, u.username AS creator_username
+       FROM statement_markets sm
+       JOIN users u ON sm.creator_id = u.id
+       WHERE sm.original_market_id = $1
+       ORDER BY sm.created_at DESC LIMIT 1`,
       [req.params.id]
     );
 
