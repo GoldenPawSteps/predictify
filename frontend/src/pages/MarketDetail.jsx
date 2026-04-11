@@ -386,7 +386,6 @@ export default function MarketDetail() {
         {positions.length > 0 && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Positions</h2>
-            <div style={{ overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -408,7 +407,6 @@ export default function MarketDetail() {
                 })}
               </tbody>
             </table>
-            </div>
           </div>
         )}
 
