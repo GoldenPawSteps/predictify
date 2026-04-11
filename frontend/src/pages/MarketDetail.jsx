@@ -390,7 +390,7 @@ export default function MarketDetail() {
               <thead>
                 <tr>
                   <th style={styles.th}>User</th>
-                  {market.outcomes.map((o, i) => <th key={i} style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>{o}</th>)}
+                  {market.outcomes.map((o, i) => <th key={i} style={styles.th}>{o}</th>)}
                   <th style={styles.th}>Value (@current)</th>
                 </tr>
               </thead>
@@ -528,7 +528,7 @@ export default function MarketDetail() {
                     <thead>
                       <tr>
                         <th style={styles.th}>User</th>
-                        {market.outcomes.map((o, i) => <th key={i} style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>{o}</th>)}
+                        {market.outcomes.map((o, i) => <th key={i} style={styles.th}>{o}</th>)}
                         <th style={styles.th}>Value (@current)</th>
                       </tr>
                     </thead>
