@@ -49,6 +49,8 @@ pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS description TEXT`)
   .then(() => pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`))
   .then(() => pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS volume DOUBLE PRECISION NOT NULL DEFAULT 0`))
   .then(() => pool.query(`ALTER TABLE statement_markets ADD COLUMN IF NOT EXISTS volume DOUBLE PRECISION NOT NULL DEFAULT 0`))
+  .then(() => pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS stmt_end_time_min TIMESTAMPTZ`))
+  .then(() => pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS stmt_end_time_max TIMESTAMPTZ`))
   .then(() => pool.query(`CREATE TABLE IF NOT EXISTS comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     market_id UUID REFERENCES markets(id) NOT NULL,

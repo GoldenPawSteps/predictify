@@ -447,9 +447,19 @@ export default function MarketDetail() {
         <div style={{ display: activeTab === 'statement' ? '' : 'none' }}>
         {!isExpired ? (
           <div style={styles.section}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: 0 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: '0 0 0.75rem' }}>
               This market is still active. The statement tab will be available once the market expires.
             </p>
+            {(market.stmt_end_time_min || market.stmt_end_time_max) && (
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-faint2)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                {market.stmt_end_time_min && (
+                  <span>⏱ Statement end time earliest: <strong>{new Date(market.stmt_end_time_min).toLocaleString()}</strong></span>
+                )}
+                {market.stmt_end_time_max && (
+                  <span>⏱ Statement end time latest: <strong>{new Date(market.stmt_end_time_max).toLocaleString()}</strong></span>
+                )}
+              </div>
+            )}
           </div>
         ) : (<>
 
@@ -480,7 +490,22 @@ export default function MarketDetail() {
                 </div>
                 <div style={{ marginBottom: '0.75rem' }}>
                   <label style={{ ...styles.label, display: 'inline' }}>End Time: </label>
-                  <input style={styles.stmtInput} type="datetime-local" value={stmtEndTime} onChange={e => setStmtEndTime(e.target.value)} required />
+                  <input
+                    style={styles.stmtInput}
+                    type="datetime-local"
+                    value={stmtEndTime}
+                    onChange={e => setStmtEndTime(e.target.value)}
+                    min={market.stmt_end_time_min ? new Date(market.stmt_end_time_min).toISOString().slice(0, 16) : undefined}
+                    max={market.stmt_end_time_max ? new Date(market.stmt_end_time_max).toISOString().slice(0, 16) : undefined}
+                    required
+                  />
+                  {(market.stmt_end_time_min || market.stmt_end_time_max) && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-faint2)', marginTop: '0.25rem' }}>
+                      {market.stmt_end_time_min && <span>Earliest: {new Date(market.stmt_end_time_min).toLocaleString()}</span>}
+                      {market.stmt_end_time_min && market.stmt_end_time_max && <span> · </span>}
+                      {market.stmt_end_time_max && <span>Latest: {new Date(market.stmt_end_time_max).toLocaleString()}</span>}
+                    </div>
+                  )}
                 </div>
                 <button style={styles.stmtBtn} type="submit" disabled={stmtLoading}>{stmtLoading ? 'Creating...' : 'Submit Statement'}</button>
                 <button type="button" style={{ ...styles.stmtBtn, background: '#6b7280', marginLeft: '0.5rem' }} onClick={() => setShowStmtForm(false)}>Cancel</button>

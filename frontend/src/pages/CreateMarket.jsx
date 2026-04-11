@@ -46,6 +46,8 @@ export default function CreateMarket() {
   const [probabilities, setProbabilities] = useState(saved.probabilities || [0.5, 0.5]);
   const [beta, setBeta] = useState(saved.beta ?? 10);
   const [endTime, setEndTime] = useState(saved.endTime || '');
+  const [stmtEndTimeMin, setStmtEndTimeMin] = useState(saved.stmtEndTimeMin || '');
+  const [stmtEndTimeMax, setStmtEndTimeMax] = useState(saved.stmtEndTimeMax || '');
   const [tags, setTags] = useState(saved.tags || []);
   const [tagInput, setTagInput] = useState('');
   const [error, setError] = useState('');
@@ -56,8 +58,8 @@ export default function CreateMarket() {
 
   // Persist draft on every change
   useEffect(() => {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ question, description, tags, outcomes, probabilities, beta, endTime }));
-  }, [question, description, tags, outcomes, probabilities, beta, endTime]);
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ question, description, tags, outcomes, probabilities, beta, endTime, stmtEndTimeMin, stmtEndTimeMax }));
+  }, [question, description, tags, outcomes, probabilities, beta, endTime, stmtEndTimeMin, stmtEndTimeMax]);
 
   const probSum = probabilities.reduce((a, b) => a + Number(b), 0);
   const normalizedProbs = probabilities.map(p => Number(p) / probSum);
@@ -103,6 +105,8 @@ export default function CreateMarket() {
         probabilities: normalizedProbs,
         liquidity_beta: Number(beta),
         end_time: new Date(endTime).toISOString(),
+        stmt_end_time_min: stmtEndTimeMin ? new Date(stmtEndTimeMin).toISOString() : undefined,
+        stmt_end_time_max: stmtEndTimeMax ? new Date(stmtEndTimeMax).toISOString() : undefined,
       });
       sessionStorage.removeItem(DRAFT_KEY);
       await refreshUser();
@@ -195,6 +199,12 @@ export default function CreateMarket() {
 
             <label style={styles.label}>End Time</label>
             <input style={{ ...styles.input, boxSizing: 'border-box', maxWidth: '100%', WebkitAppearance: 'none', appearance: 'none', minHeight: '2.6rem' }} type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+
+            <label style={styles.label}>Statement End Time — Earliest <span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>(optional)</span></label>
+            <input style={{ ...styles.input, boxSizing: 'border-box', maxWidth: '100%', WebkitAppearance: 'none', appearance: 'none', minHeight: '2.6rem' }} type="datetime-local" value={stmtEndTimeMin} onChange={e => setStmtEndTimeMin(e.target.value)} min={endTime} />
+
+            <label style={styles.label}>Statement End Time — Latest <span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>(optional)</span></label>
+            <input style={{ ...styles.input, boxSizing: 'border-box', maxWidth: '100%', WebkitAppearance: 'none', appearance: 'none', minHeight: '2.6rem' }} type="datetime-local" value={stmtEndTimeMax} onChange={e => setStmtEndTimeMax(e.target.value)} min={stmtEndTimeMin || endTime} />
 
             <div style={canAfford ? styles.infoBox : styles.warnBox}>
               <strong>Liquidity Cost (L):</strong> {isFinite(L) ? L.toFixed(4) : '—'}<br />

@@ -82,7 +82,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', authMiddleware, async (req, res) => {
-  const { question, description, tags, outcomes, probabilities, liquidity_beta, end_time } = req.body;
+  const { question, description, tags, outcomes, probabilities, liquidity_beta, end_time, stmt_end_time_min, stmt_end_time_max } = req.body;
 
   if (!question || !outcomes || !probabilities || !liquidity_beta || !end_time) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -99,6 +99,25 @@ router.post('/', authMiddleware, async (req, res) => {
   const endDate = new Date(end_time);
   if (isNaN(endDate.getTime()) || endDate <= new Date()) {
     return res.status(400).json({ error: 'end_time must be in the future' });
+  }
+
+  // Optional statement window validation
+  let stmtMinDate = null;
+  let stmtMaxDate = null;
+  if (stmt_end_time_min) {
+    stmtMinDate = new Date(stmt_end_time_min);
+    if (isNaN(stmtMinDate.getTime()) || stmtMinDate <= endDate) {
+      return res.status(400).json({ error: 'stmt_end_time_min must be after the market end time' });
+    }
+  }
+  if (stmt_end_time_max) {
+    stmtMaxDate = new Date(stmt_end_time_max);
+    if (isNaN(stmtMaxDate.getTime()) || stmtMaxDate <= endDate) {
+      return res.status(400).json({ error: 'stmt_end_time_max must be after the market end time' });
+    }
+    if (stmtMinDate && stmtMaxDate <= stmtMinDate) {
+      return res.status(400).json({ error: 'stmt_end_time_max must be after stmt_end_time_min' });
+    }
   }
 
   // Coerce and validate probabilities
@@ -140,10 +159,10 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Create market — initial escrow equals the liquidity cost L deposited by maker
     const marketResult = await client.query(
-      `INSERT INTO markets (creator_id, question, description, tags, outcomes, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost, escrow)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO markets (creator_id, question, description, tags, outcomes, probabilities, liquidity_beta, end_time, maker_quantities, liquidity_cost, escrow, stmt_end_time_min, stmt_end_time_max)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
-      [req.user.id, question, description || null, sanitizedTags, outcomes, normalizedProbs, liquidity_beta, endDate, makerQuantities, L, L]
+      [req.user.id, question, description || null, sanitizedTags, outcomes, normalizedProbs, liquidity_beta, endDate, makerQuantities, L, L, stmtMinDate, stmtMaxDate]
     );
     const market = marketResult.rows[0];
 

@@ -59,6 +59,15 @@ router.post('/markets/:marketId/statement', authMiddleware, async (req, res) => 
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'end_time must be in the future' });
     }
+    // Enforce statement time window set by market creator
+    if (market.stmt_end_time_min && endDate < new Date(market.stmt_end_time_min)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Statement end time must be on or after ${new Date(market.stmt_end_time_min).toISOString()}` });
+    }
+    if (market.stmt_end_time_max && endDate > new Date(market.stmt_end_time_max)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Statement end time must be on or before ${new Date(market.stmt_end_time_max).toISOString()}` });
+    }
     if (liquidity_beta <= 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'liquidity_beta must be positive' });
