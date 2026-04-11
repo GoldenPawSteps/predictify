@@ -61,7 +61,6 @@ const styles = {
   errorBox: { background: '#fee2e2', color: '#b91c1c', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' },
   successBox: { background: '#f0fdf4', color: '#166534', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' },
-  tableWrapper: { overflowX: 'auto', overflowY: 'auto', maxHeight: '300px' },
   th: { textAlign: 'left', padding: '0.5rem 0.75rem', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' },
   td: { padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' },
   stmtBtn: { background: '#7c3aed', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', marginTop: '1rem' },
@@ -387,7 +386,7 @@ export default function MarketDetail() {
         {positions.length > 0 && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Positions</h2>
-            <div style={styles.tableWrapper}>
+            <div style={{ overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -527,7 +526,7 @@ export default function MarketDetail() {
               return (
                 <div style={{ marginTop: '1.25rem' }}>
                   <h3 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>Statement Positions</h3>
-                  <div style={styles.tableWrapper}>
+                  <div style={{ overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }}>
                   <table style={styles.table}>
                     <thead>
                       <tr>

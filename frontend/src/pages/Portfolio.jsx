@@ -18,7 +18,6 @@ const styles = {
   balanceBox: { background: 'var(--balance-bg)', border: '1px solid var(--balance-border)', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' },
   balanceAmount: { fontSize: '2rem', fontWeight: '700', color: 'var(--text-primary)' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' },
-  tableWrapper: { overflowX: 'auto', overflowY: 'auto', maxHeight: '300px' },
   th: { textAlign: 'left', padding: '0.5rem 0.75rem', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' },
   td: { padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' },
   posLink: { color: 'var(--link)', textDecoration: 'none', fontWeight: '500' },
@@ -216,7 +215,7 @@ export default function Portfolio() {
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Status:</span>
                   {[[null,'All'],['active','Active'],['expired','Expired'],['pending_resolution','Pending'],['resolved','Resolved']].map(([k,l]) => <button key={k??'all'} style={styles.pill(mktStatus===k,'#1a1a2e')} onClick={() => setParam('mStatus', mktStatus===k?null:k, null)}>{l}</button>)}
                 </div>
-                <div style={styles.tableWrapper}>
+                <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
@@ -277,7 +276,7 @@ export default function Portfolio() {
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Status:</span>
                   {[[null,'All'],['active','Active'],['expired','Expired'],['pending_resolution','Pending']].map(([k,l]) => <button key={k??'all'} style={styles.pill(posStatus===k,'#1a1a2e')} onClick={() => setParam('pStatus', posStatus===k?null:k, null)}>{l}</button>)}
                 </div>
-                <div style={styles.tableWrapper}>
+                <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
@@ -323,7 +322,7 @@ export default function Portfolio() {
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Direction:</span>
                   {[[null,'All'],['credit','Credits'],['debit','Debits']].map(([k,l]) => <button key={k??'all'} style={styles.pill(ledgerDir===k,'#059669')} onClick={() => setParam('lDir', ledgerDir===k?null:k, null)}>{l}</button>)}
                 </div>
-                <div style={styles.tableWrapper}>
+                <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
