@@ -386,6 +386,7 @@ export default function MarketDetail() {
         {positions.length > 0 && (
           <div style={styles.section}>
             <h2 style={styles.h2}>Positions</h2>
+            <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -407,6 +408,7 @@ export default function MarketDetail() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -524,6 +526,7 @@ export default function MarketDetail() {
               return (
                 <div style={{ marginTop: '1.25rem' }}>
                   <h3 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>Statement Positions</h3>
+                  <div style={{ overflowX: 'auto' }}>
                   <table style={styles.table}>
                     <thead>
                       <tr>
@@ -545,6 +548,7 @@ export default function MarketDetail() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               );
             })()}
