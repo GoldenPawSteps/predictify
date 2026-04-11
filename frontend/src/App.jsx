@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login';
@@ -13,6 +13,7 @@ const scrollPositions = new Map();
 
 function ScrollRestoration() {
   const { key } = useLocation();
+  const navType = useNavigationType();
   const keyRef = useRef(key);
 
   useEffect(() => {
@@ -24,6 +25,7 @@ function ScrollRestoration() {
   useEffect(() => { keyRef.current = key; }, [key]);
 
   useLayoutEffect(() => {
+    if (navType === 'REPLACE') return;
     const saved = scrollPositions.get(key);
     if (!saved || saved <= 0) {
       window.scrollTo(0, 0);
