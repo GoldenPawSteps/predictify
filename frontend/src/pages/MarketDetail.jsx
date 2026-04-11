@@ -79,6 +79,14 @@ function statusBadge(status) {
   return { background: bg[status] || '#f3f4f6', color: tc[status] || '#374151' };
 }
 
+// datetime-local inputs require local time for min/max — toISOString() returns UTC which
+// causes the browser to display the wrong boundary for users outside UTC.
+function toLocalDatetimeInput(isoString) {
+  const d = new Date(isoString);
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+}
+
 const expiredBadge = { background: '#fee2e2', color: '#b91c1c' };
 
 export default function MarketDetail() {
@@ -283,6 +291,16 @@ export default function MarketDetail() {
     }
   }
 
+  async function handleAutoSettle() {
+    try {
+      await api.post(`/settlement/markets/${id}/auto-settle`);
+      await fetchData();
+      await refreshUser();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Auto-settlement failed');
+    }
+  }
+
   async function handleResolve() {
     try {
       await api.post(`/settlement/${data.statement_market.id}/resolve`);
@@ -463,7 +481,21 @@ export default function MarketDetail() {
           </div>
         ) : (<>
 
-        {canCreateStmt && (
+        {canCreateStmt && market.stmt_end_time_max && new Date(market.stmt_end_time_max) <= new Date() ? (
+          <div style={styles.section}>
+            <h2 style={styles.h2}>Auto-Settlement</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              The statement deadline passed without a statement market being created.
+              The market will be settled using the final LMSR price distribution.
+            </p>
+            {market.outcomes.map((o, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                <span>{o}</span><strong>{((market.current_prices?.[i] || 0) * 100).toFixed(2)}%</strong>
+              </div>
+            ))}
+            <button style={{ ...styles.stmtBtn, background: '#059669', marginTop: '1rem' }} onClick={handleAutoSettle}>Claim Auto-Settlement</button>
+          </div>
+        ) : canCreateStmt ? (
           <div style={styles.section}>
             <h2 style={styles.h2}>Create Statement Market</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Market has ended. Create a statement market to begin the resolution process.</p>
@@ -495,8 +527,8 @@ export default function MarketDetail() {
                     type="datetime-local"
                     value={stmtEndTime}
                     onChange={e => setStmtEndTime(e.target.value)}
-                    min={market.stmt_end_time_min ? new Date(market.stmt_end_time_min).toISOString().slice(0, 16) : undefined}
-                    max={market.stmt_end_time_max ? new Date(market.stmt_end_time_max).toISOString().slice(0, 16) : undefined}
+                    min={market.stmt_end_time_min ? toLocalDatetimeInput(market.stmt_end_time_min) : undefined}
+                    max={market.stmt_end_time_max ? toLocalDatetimeInput(market.stmt_end_time_max) : undefined}
                     required
                   />
                   {(market.stmt_end_time_min || market.stmt_end_time_max) && (
@@ -512,7 +544,7 @@ export default function MarketDetail() {
               </form>
             )}
           </div>
-        )}
+        ) : null}
 
         {statement_market && (
           <div style={styles.section}>

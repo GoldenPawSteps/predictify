@@ -361,6 +361,105 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /settlement/markets/:marketId/auto-settle
+// Triggered when stmt_end_time_max has passed with no statement market created.
+// Falls back to the market's own LMSR price distribution for payouts.
+router.post('/markets/:marketId/auto-settle', authMiddleware, async (req, res) => {
+  const { marketId } = req.params;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const marketResult = await client.query('SELECT * FROM markets WHERE id = $1 FOR UPDATE', [marketId]);
+    if (!marketResult.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Market not found' });
+    }
+    const market = marketResult.rows[0];
+
+    if (market.status !== 'active') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Market is not active (status: ${market.status})` });
+    }
+    if (new Date(market.end_time) > new Date()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Market has not ended yet' });
+    }
+    if (!market.stmt_end_time_max) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'This market has no statement deadline set' });
+    }
+    if (new Date(market.stmt_end_time_max) > new Date()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Statement deadline has not passed yet' });
+    }
+
+    // Confirm no statement market exists
+    const stmtCheck = await client.query(
+      'SELECT id FROM statement_markets WHERE original_market_id = $1 LIMIT 1',
+      [marketId]
+    );
+    if (stmtCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'A statement market already exists for this market' });
+    }
+
+    // Use the market's own LMSR prices as the settlement distribution
+    const finalPrices = getPrices(market.maker_quantities, market.probabilities, market.liquidity_beta);
+
+    const settlements = {};
+
+    // Original market maker: L + C(q^m) - dC(q^m)[q^m]
+    const C_qm = costFunction(market.maker_quantities, market.probabilities, market.liquidity_beta);
+    const grad_at_maker = gradientDotProduct(
+      market.maker_quantities, market.probabilities, market.liquidity_beta,
+      market.maker_quantities
+    );
+    const origMakerPayout = market.liquidity_cost + C_qm - grad_at_maker;
+    settlements[market.creator_id] = (settlements[market.creator_id] || 0) + origMakerPayout;
+
+    // Original market takers: dC(q^m)[q^t] - min(q^t)
+    const origPositions = await client.query(
+      'SELECT * FROM positions WHERE market_id = $1',
+      [marketId]
+    );
+    for (const pos of origPositions.rows) {
+      const grad = gradientDotProduct(
+        market.maker_quantities, market.probabilities, market.liquidity_beta,
+        pos.quantities
+      );
+      const payout = grad - Math.min(...pos.quantities);
+      settlements[pos.user_id] = (settlements[pos.user_id] || 0) + payout;
+    }
+
+    // Apply all settlements
+    for (const [userId, amount] of Object.entries(settlements)) {
+      if (Math.abs(amount) > 1e-10) {
+        await client.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [amount, userId]);
+        await client.query(
+          'INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)',
+          [userId, amount, `Auto-settlement for market ${marketId}`, marketId, 'settlement']
+        );
+      }
+    }
+
+    await client.query(
+      'UPDATE markets SET status = $1, escrow = 0 WHERE id = $2',
+      ['resolved', marketId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, final_prices: finalPrices, settlements });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 router.get('/:id/price-history', async (req, res) => {
   try {
     const result = await pool.query(

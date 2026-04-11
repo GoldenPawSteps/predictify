@@ -16,6 +16,11 @@
         -webkit-tap-highlight-color: transparent !important;
       }
 
+      /* Prevent iOS Safari from zooming on input focus (triggered when font-size < 16px) */
+      /* !important is required to override inline fontSize styles set by React components */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
     </style>
   </head>
   <body>
