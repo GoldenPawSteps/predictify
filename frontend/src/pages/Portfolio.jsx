@@ -51,6 +51,10 @@ function displayStatus(status, endTime) {
   return status === 'active' && new Date(endTime) <= new Date() ? 'expired' : status;
 }
 
+function calcPnl(p) {
+  return Number(p.net_spent);
+}
+
 export default function Portfolio() {
   const [markets, setMarkets] = useState([]);
   const [positions, setPositions] = useState([]);
@@ -327,23 +331,30 @@ export default function Portfolio() {
                       <th style={styles.th}>Type</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Quantities</th>
+                      <th style={styles.th}>Net P&amp;L</th>
                     </tr>
                   </thead>
                   <tbody>
                     {openPositionRows.length === 0 ? (
-                      <tr><td colSpan={4} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No results</td></tr>
-                    ) : openPositionRows.map(p => (
-                      <tr key={p._type === 'market' ? p.market_id : p.statement_market_id}>
-                        <td style={styles.td}><Link to={p._link} style={styles.posLink}>{p.question}</Link></td>
-                        <td style={styles.td}><span style={{ fontSize: '0.8rem', color: p._type === 'statement' ? '#7c3aed' : '#555' }}>{p._type}</span></td>
-                        <td style={styles.td}>{(() => { const s = displayStatus(p.status, p.end_time); return <span style={{ ...styles.badge, ...statusBadge(s) }}>{s.replace(/_/g, ' ')}</span>; })()}</td>
-                        <td style={styles.td}>
-                          {p.outcomes.map((o, i) => (
-                            <div key={i} style={{ fontSize: '0.85rem' }}>{o}: {Number(p.quantities[i]).toFixed(2)}</div>
-                          ))}
-                        </td>
-                      </tr>
-                    ))}
+                      <tr><td colSpan={5} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No results</td></tr>
+                    ) : openPositionRows.map(p => {
+                      const pnl = calcPnl(p);
+                      return (
+                        <tr key={p._type === 'market' ? p.market_id : p.statement_market_id}>
+                          <td style={styles.td}><Link to={p._link} style={styles.posLink}>{p.question}</Link></td>
+                          <td style={styles.td}><span style={{ fontSize: '0.8rem', color: p._type === 'statement' ? '#7c3aed' : '#555' }}>{p._type}</span></td>
+                          <td style={styles.td}>{(() => { const s = displayStatus(p.status, p.end_time); return <span style={{ ...styles.badge, ...statusBadge(s) }}>{s.replace(/_/g, ' ')}</span>; })()}</td>
+                          <td style={styles.td}>
+                            {p.outcomes.map((o, i) => (
+                              <div key={i} style={{ fontSize: '0.85rem' }}>{o}: {Number(p.quantities[i]).toFixed(2)}</div>
+                            ))}
+                          </td>
+                          <td style={{ ...styles.td, fontWeight: 600, color: pnl >= 0 ? '#16a34a' : '#dc2626' }}>
+                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 </div>

@@ -27,10 +27,17 @@ router.get('/statement-positions', authMiddleware, async (req, res) => {
       `SELECT sp.quantities, sp.updated_at,
               sm.id as statement_market_id, sm.original_market_id, sm.status, sm.end_time,
               sm.probabilities, sm.liquidity_beta, sm.maker_quantities,
-              m.question, m.outcomes
+              m.question, m.outcomes,
+              COALESCE(l.net_spent, 0) as net_spent
        FROM statement_positions sp
        JOIN statement_markets sm ON sp.statement_market_id = sm.id
        JOIN markets m ON sm.original_market_id = m.id
+       LEFT JOIN (
+         SELECT reference_id, SUM(amount) as net_spent
+         FROM ledger
+         WHERE user_id = $1 AND reference_type = 'statement_trade'
+         GROUP BY reference_id
+       ) l ON l.reference_id = sm.id
        WHERE sp.user_id = $1
        ORDER BY sp.updated_at DESC`,
       [req.user.id]
@@ -47,9 +54,16 @@ router.get('/positions', authMiddleware, async (req, res) => {
     const result = await pool.query(
       `SELECT p.quantities, p.updated_at,
               m.id as market_id, m.question, m.outcomes, m.probabilities,
-              m.liquidity_beta, m.maker_quantities, m.status, m.end_time
+              m.liquidity_beta, m.maker_quantities, m.status, m.end_time,
+              COALESCE(l.net_spent, 0) as net_spent
        FROM positions p
        JOIN markets m ON p.market_id = m.id
+       LEFT JOIN (
+         SELECT reference_id, SUM(amount) as net_spent
+         FROM ledger
+         WHERE user_id = $1 AND reference_type = 'trade'
+         GROUP BY reference_id
+       ) l ON l.reference_id = m.id
        WHERE p.user_id = $1
        ORDER BY p.updated_at DESC`,
       [req.user.id]
