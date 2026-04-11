@@ -104,7 +104,7 @@ export default function Portfolio() {
       const n = new URLSearchParams(p);
       if (value == null || value === defaultValue) n.delete(key); else n.set(key, value);
       return n;
-    }, { replace: key === 'tab' });
+    }, { replace: true });
   }
 
   function handleLogout() { logout(); navigate('/login'); }

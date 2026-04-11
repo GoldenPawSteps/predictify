@@ -51,19 +51,19 @@ export default function Markets() {
   const navigate = useNavigate();
 
   function setActiveTag(tag) {
-    setSearchParams(p => { const n = new URLSearchParams(p); tag ? n.set('tag', tag) : n.delete('tag'); return n; }, { replace: false });
+    setSearchParams(p => { const n = new URLSearchParams(p); tag ? n.set('tag', tag) : n.delete('tag'); return n; }, { replace: true });
   }
   function setSortKey(key) {
-    setSearchParams(p => { const n = new URLSearchParams(p); key === 'newest' ? n.delete('sort') : n.set('sort', key); return n; }, { replace: false });
+    setSearchParams(p => { const n = new URLSearchParams(p); key === 'newest' ? n.delete('sort') : n.set('sort', key); return n; }, { replace: true });
   }
   function setStatusFilter(s) {
-    setSearchParams(p => { const n = new URLSearchParams(p); s ? n.set('status', s) : n.delete('status'); return n; }, { replace: false });
+    setSearchParams(p => { const n = new URLSearchParams(p); s ? n.set('status', s) : n.delete('status'); return n; }, { replace: true });
   }
   function setCreatorFilter(c) {
-    setSearchParams(p => { const n = new URLSearchParams(p); c ? n.set('creator', c) : n.delete('creator'); return n; }, { replace: false });
+    setSearchParams(p => { const n = new URLSearchParams(p); c ? n.set('creator', c) : n.delete('creator'); return n; }, { replace: true });
   }
   function setSearchQuery(q) {
-    setSearchParams(p => { const n = new URLSearchParams(p); q ? n.set('q', q) : n.delete('q'); return n; }, { replace: false });
+    setSearchParams(p => { const n = new URLSearchParams(p); q ? n.set('q', q) : n.delete('q'); return n; }, { replace: true });
   }
 
   useEffect(() => {
