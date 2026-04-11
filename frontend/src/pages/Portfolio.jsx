@@ -124,6 +124,7 @@ export default function Portfolio() {
   const ledgerSearch = searchParams.get('lQ') || '';
   const ledgerDir = searchParams.get('lDir') || null;
   const ledgerSort = searchParams.get('lSort') || 'newest';
+  const ledgerType = searchParams.get('lType') || null;
   const activeTab = searchParams.get('tab') || 'markets';
 
   // --- Local search input states (debounced to URL) ---
@@ -203,6 +204,7 @@ export default function Portfolio() {
       }
       if (ledgerDir === 'credit' && entry.amount < 0) return false;
       if (ledgerDir === 'debit' && entry.amount >= 0) return false;
+      if (ledgerType && entry.reference_type !== ledgerType) return false;
       return true;
     })
     .sort((a, b) => ledgerSort === 'oldest'
@@ -402,6 +404,10 @@ export default function Portfolio() {
                   {[['newest','Newest'],['oldest','Oldest']].map(([k,l]) => <button key={k} style={styles.pill(ledgerSort===k,'#1a1a2e')} onClick={() => setParam('lSort', k, 'newest')}>{l}</button>)}
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Direction:</span>
                   {[[null,'All'],['credit','Credits'],['debit','Debits']].map(([k,l]) => <button key={k??'all'} style={styles.pill(ledgerDir===k,'#059669')} onClick={() => setParam('lDir', ledgerDir===k?null:k, null)}>{l}</button>)}
+                </div>
+                <div style={styles.ctrlRow}>
+                  <span style={styles.ctrlLabel}>Type:</span>
+                  {[[null,'All'],['trade','Trade'],['statement_trade','Stmt Trade'],['market_creation','Created'],['statement_creation','Stmt Created'],['settlement','Settlement']].map(([k,l]) => <button key={k??'all'} style={styles.pill(ledgerType===k,'#7c3aed')} onClick={() => setParam('lType', ledgerType===k?null:k, null)}>{l}</button>)}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                 <table style={styles.table}>
