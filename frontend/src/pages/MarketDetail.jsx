@@ -70,7 +70,7 @@ const styles = {
   themeBtn: { background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' },
   stmtInput: { width: '100px', padding: '0.4rem', border: '1px solid var(--border-input)', borderRadius: '4px', fontSize: '1rem', marginRight: '0.5rem', background: 'var(--surface)', color: 'var(--text-primary)' },
   tabBar: { display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: '1.5rem' },
-  tab: (active) => ({ background: 'none', border: 'none', borderBottom: active ? '2px solid var(--text-primary)' : '2px solid transparent', marginBottom: '-2px', padding: '0.65rem 1.2rem', fontWeight: 600, fontSize: '0.95rem', color: active ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }),
+  tab: (active) => ({ background: 'none', border: 'none', borderBottom: active ? '2px solid var(--text-primary)' : '2px solid transparent', marginBottom: '-2px', padding: '0.65rem 1.2rem', fontWeight: 600, fontSize: '0.95rem', color: active ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap', touchAction: 'manipulation' }),
 };
 
 function statusBadge(status) {
@@ -100,6 +100,10 @@ export default function MarketDetail() {
   const [stmtTradeSuccess, setStmtTradeSuccess] = useState('');
   const [stmtTrading, setStmtTrading] = useState(false);
   const [positionVersion, setPositionVersion] = useState(0);
+  const [comments, setComments] = useState([]);
+  const [commentBody, setCommentBody] = useState('');
+  const [commentError, setCommentError] = useState('');
+  const [commentPosting, setCommentPosting] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'market';
   function setActiveTab(tab) {
@@ -111,6 +115,13 @@ export default function MarketDetail() {
   const { user, logout, refreshUser } = useAuth();
   const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
+
+  async function fetchComments() {
+    try {
+      const res = await api.get(`/markets/${id}/comments`);
+      setComments(res.data.comments || []);
+    } catch {}
+  }
 
   async function fetchData() {
     try {
@@ -134,7 +145,7 @@ export default function MarketDetail() {
     }
   }
 
-  useEffect(() => { fetchData(); refreshUser(); }, [id]);
+  useEffect(() => { fetchData(); fetchComments(); refreshUser(); }, [id]);
   useEffect(() => {
     setChartReady(false);
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -255,6 +266,23 @@ export default function MarketDetail() {
     }
   }
 
+  async function handleCommentSubmit(e) {
+    e.preventDefault();
+    setCommentError('');
+    if (!commentBody.trim()) return;
+    setCommentPosting(true);
+    try {
+      const res = await api.post(`/markets/${id}/comments`, { body: commentBody });
+      setComments(c => [res.data.comment, ...c]);
+      setCommentBody('');
+      if (document.activeElement) document.activeElement.blur();
+    } catch (err) {
+      setCommentError(err.response?.data?.error || 'Failed to post comment');
+    } finally {
+      setCommentPosting(false);
+    }
+  }
+
   async function handleResolve() {
     try {
       await api.post(`/settlement/${data.statement_market.id}/resolve`);
@@ -304,9 +332,10 @@ export default function MarketDetail() {
         <div style={styles.tabBar}>
           <button style={styles.tab(activeTab === 'market')} onClick={() => setActiveTab('market')}>Market</button>
           <button style={styles.tab(activeTab === 'statement')} onClick={() => setActiveTab('statement')}>Statement</button>
+          <button style={styles.tab(activeTab === 'comments')} onClick={() => setActiveTab('comments')}>Comments {comments.length > 0 && `(${comments.length})`}</button>
         </div>
 
-        {(activeTab === 'market') && (<>
+        <div style={{ display: activeTab === 'market' ? '' : 'none' }}>
 
         <div style={styles.section}>
           {(() => { const exp = isExpired && market.status === 'active'; return <div style={{ ...styles.badge, ...(exp ? expiredBadge : statusBadge(market.status)) }}>{exp ? 'expired' : market.status.replace(/_/g, ' ')}</div>; })()}
@@ -413,17 +442,16 @@ export default function MarketDetail() {
           </div>
         )}
 
-        </>)}
+        </div>
 
-        {!isExpired && activeTab === 'statement' && (
+        <div style={{ display: activeTab === 'statement' ? '' : 'none' }}>
+        {!isExpired ? (
           <div style={styles.section}>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: 0 }}>
               This market is still active. The statement tab will be available once the market expires.
             </p>
           </div>
-        )}
-
-        {isExpired && activeTab === 'statement' && (<>
+        ) : (<>
 
         {canCreateStmt && (
           <div style={styles.section}>
@@ -565,6 +593,42 @@ export default function MarketDetail() {
         )}
 
         </>)}
+        </div>
+
+        <div style={{ display: activeTab === 'comments' ? '' : 'none' }}>
+          <div style={styles.section}>
+            <h2 style={styles.h2}>Comments</h2>
+            {commentError && <div style={styles.errorBox}>{commentError}</div>}
+            <form onSubmit={handleCommentSubmit} style={{ marginBottom: '1.5rem' }}>
+              <textarea
+                value={commentBody}
+                onChange={e => setCommentBody(e.target.value)}
+                placeholder="Write a comment…"
+                maxLength={2000}
+                rows={3}
+                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--border-input)', borderRadius: '6px', fontSize: '0.95rem', boxSizing: 'border-box', resize: 'vertical', background: 'var(--surface)', color: 'var(--text-primary)', marginBottom: '0.5rem' }}
+              />
+              <button style={styles.tradeBtn} type="submit" disabled={commentPosting || !commentBody.trim()}>
+                {commentPosting ? 'Posting…' : 'Post Comment'}
+              </button>
+            </form>
+            {comments.length === 0 ? (
+              <div style={{ color: 'var(--text-faint)', fontSize: '0.95rem' }}>No comments yet. Be the first!</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {comments.map(c => (
+                  <div key={c.id} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline', marginBottom: '0.35rem' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{c.username}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{new Date(c.created_at).toLocaleString()}</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.body}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

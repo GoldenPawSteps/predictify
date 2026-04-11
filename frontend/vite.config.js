@@ -14,6 +14,7 @@ export default defineConfig({
         route,
         {
           target: backendUrl,
+          changeOrigin: true,
           bypass: (req) => {
             const accept = req.headers['accept'] || '';
             if (accept.includes('text/html')) return '/index.html';

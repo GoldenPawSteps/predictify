@@ -41,7 +41,8 @@ router.get('/:id', async (req, res) => {
       `SELECT p.*, u.username
        FROM positions p
        JOIN users u ON p.user_id = u.id
-       WHERE p.market_id = $1`,
+       WHERE p.market_id = $1
+       ORDER BY p.updated_at DESC`,
       [req.params.id]
     );
 
@@ -61,7 +62,8 @@ router.get('/:id', async (req, res) => {
         `SELECT sp.*, u.username
          FROM statement_positions sp
          JOIN users u ON sp.user_id = u.id
-         WHERE sp.statement_market_id = $1`,
+         WHERE sp.statement_market_id = $1
+         ORDER BY sp.updated_at DESC`,
         [stmtResult.rows[0].id]
       );
       stmtPositions = spResult.rows;

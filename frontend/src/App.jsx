@@ -12,52 +12,32 @@ import Portfolio from './pages/Portfolio';
 const scrollPositions = new Map();
 
 function ScrollRestoration() {
-  const { key } = useLocation();
+  const { key, pathname } = useLocation();
   const navType = useNavigationType();
   const keyRef = useRef(key);
+  // Tracks the pathname from the previous render (updated by useEffect, after useLayoutEffect)
+  const prevPathnameRef = useRef(null);
 
   useEffect(() => {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    // Safety: clear any visibility:hidden left over from a prior navigation or HMR cycle
+    document.documentElement.style.visibility = '';
     const handleScroll = () => { scrollPositions.set(keyRef.current, window.scrollY); };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => { keyRef.current = key; }, [key]);
+  useEffect(() => {
+    keyRef.current = key;
+    prevPathnameRef.current = pathname;
+  }, [key, pathname]);
 
   useLayoutEffect(() => {
     if (navType === 'REPLACE') return;
-    const saved = scrollPositions.get(key);
-    if (!saved || saved <= 0) {
-      window.scrollTo(0, 0);
-      return;
-    }
-
-    document.documentElement.style.visibility = 'hidden';
-    let rafId;
-
-    const tryRestore = () => {
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      if (maxScroll >= saved - 50) {
-        window.scrollTo({ top: saved, behavior: 'instant' });
-        document.documentElement.style.visibility = '';
-      } else {
-        rafId = requestAnimationFrame(tryRestore);
-      }
-    };
-    rafId = requestAnimationFrame(tryRestore);
-
-    const fallback = setTimeout(() => {
-      cancelAnimationFrame(rafId);
-      window.scrollTo({ top: saved, behavior: 'instant' });
-      document.documentElement.style.visibility = '';
-    }, 600);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      clearTimeout(fallback);
-      document.documentElement.style.visibility = '';
-    };
+    // Same pathname = only search params changed (tab switch, filter, etc.) — skip entirely
+    if (prevPathnameRef.current !== null && pathname === prevPathnameRef.current) return;
+    const saved = scrollPositions.get(key) || 0;
+    window.scrollTo({ top: saved, behavior: 'instant' });
   }, [key]);
 
   return null;
