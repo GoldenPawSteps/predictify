@@ -174,8 +174,8 @@ export default function Portfolio() {
     });
 
   const allOpenPositionRows = [
-    ...positions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'market', _sortKey: p.updated_at, _link: `/markets/${p.market_id}` })),
-    ...stmtPositions.filter(p => p.status !== 'resolved' && p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'statement', _sortKey: p.updated_at, _link: `/markets/${p.original_market_id}` })),
+    ...positions.filter(p => p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'market', _sortKey: p.updated_at, _link: `/markets/${p.market_id}` })),
+    ...stmtPositions.filter(p => p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'statement', _sortKey: p.updated_at, _link: `/markets/${p.original_market_id}` })),
   ];
 
   const openPositionRows = allOpenPositionRows
@@ -257,7 +257,7 @@ export default function Portfolio() {
         </div>
 
         <div style={styles.tabBar}>
-          {[['markets','My Markets'],['positions','Open Positions'],['ledger','Transaction History']].map(([k,l]) => (
+          {[['markets','My Markets'],['positions','My Positions'],['ledger','Transaction History']].map(([k,l]) => (
             <button key={k} style={styles.tab(activeTab===k)} onClick={() => setParam('tab', k, 'markets')}>{l}</button>
           ))}
         </div>
@@ -338,7 +338,7 @@ export default function Portfolio() {
                   <span style={styles.ctrlLabel}>Type:</span>
                   {[[null,'All'],['market','Market'],['statement','Statement']].map(([k,l]) => <button key={k??'all'} style={styles.pill(posType===k,'#7c3aed')} onClick={() => setParam('pType', posType===k?null:k, null)}>{l}</button>)}
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Status:</span>
-                  {[[null,'All'],['active','Active'],['expired','Expired'],['pending_resolution','Pending']].map(([k,l]) => <button key={k??'all'} style={styles.pill(posStatus===k,'#1a1a2e')} onClick={() => setParam('pStatus', posStatus===k?null:k, null)}>{l}</button>)}
+                  {[[null,'All'],['active','Active'],['expired','Expired'],['pending_resolution','Pending'],['resolved','Resolved']].map(([k,l]) => <button key={k??'all'} style={styles.pill(posStatus===k,'#1a1a2e')} onClick={() => setParam('pStatus', posStatus===k?null:k, null)}>{l}</button>)}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                 <table style={styles.table}>
@@ -350,7 +350,7 @@ export default function Portfolio() {
                       <th style={styles.th}>Quantities</th>
                       <th style={styles.th}>Current</th>
                       <th style={styles.th}>Net P&amp;L</th>
-                      <th style={styles.th}>Projected P&amp;L</th>
+                      <th style={styles.th}>Unrealized P&amp;L</th>
                     </tr>
                   </thead>
                   <tbody>
