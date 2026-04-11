@@ -154,6 +154,25 @@ export default function MarketDetail() {
   }
 
   useEffect(() => { fetchData(); fetchComments(); refreshUser(); }, [id]);
+
+  // Re-fetch when market expires so the Create Statement button appears on time
+  useEffect(() => {
+    if (!data?.market?.end_time || data?.market?.status !== 'active') return;
+    const msUntil = new Date(data.market.end_time) - Date.now();
+    if (msUntil <= 0) return;
+    const t = setTimeout(() => fetchData(), msUntil + 500);
+    return () => clearTimeout(t);
+  }, [data?.market?.end_time, data?.market?.status]);
+
+  // Re-fetch when stmt_end_time_max arrives so the auto-settle button appears on time
+  useEffect(() => {
+    if (!data?.market?.stmt_end_time_max || data?.market?.status !== 'active' || data?.statement_market) return;
+    const msUntil = new Date(data.market.stmt_end_time_max) - Date.now();
+    if (msUntil <= 0) return;
+    const t = setTimeout(() => fetchData(), msUntil + 500);
+    return () => clearTimeout(t);
+  }, [data?.market?.stmt_end_time_max, data?.market?.status, data?.statement_market]);
+
   useEffect(() => {
     setChartReady(false);
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -494,6 +513,20 @@ export default function MarketDetail() {
               </div>
             ))}
             <button style={{ ...styles.stmtBtn, background: '#059669', marginTop: '1rem' }} onClick={handleAutoSettle}>Claim Auto-Settlement</button>
+          </div>
+        ) : !statement_market && market.status === 'resolved' ? (
+          <div style={styles.section}>
+            <h2 style={styles.h2}>Auto-Settled</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              This market was settled automatically using the final LMSR price distribution.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              {market.outcomes.map((o, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  <span>{o}</span><strong>{((market.current_prices?.[i] || 0) * 100).toFixed(2)}%</strong>
+                </div>
+              ))}
+            </div>
           </div>
         ) : canCreateStmt ? (
           <div style={styles.section}>
