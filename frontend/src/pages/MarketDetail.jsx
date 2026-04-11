@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api/client';
@@ -120,6 +120,9 @@ export default function MarketDetail() {
   const [chartReady, setChartReady] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
   const [stmtPriceHistory, setStmtPriceHistory] = useState([]);
+  const marketOutcomes = data?.market?.outcomes || [];
+  const marketHistory = useMemo(() => formatHistory(priceHistory, marketOutcomes), [priceHistory, marketOutcomes]);
+  const stmtHistory = useMemo(() => formatHistory(stmtPriceHistory, marketOutcomes), [stmtPriceHistory, marketOutcomes]);
   const { user, logout, refreshUser } = useAuth();
   const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -403,13 +406,13 @@ export default function MarketDetail() {
               <div ref={chartWrapperRef} style={{ position: 'relative', height: 180 }}>
                 <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
                   <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={formatHistory(priceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(priceHistory, market.outcomes))} minTickGap={40} />
+                    <LineChart data={marketHistory} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, marketHistory)} minTickGap={40} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                       {chartReady && <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />}
                       <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
                       {market.outcomes.map((o, i) => (
-                        <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
+                        <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} isAnimationActive={marketHistory.length > 1} animationDuration={500} />
                       ))}
                     </LineChart>
                   </ResponsiveContainer>
@@ -606,13 +609,13 @@ export default function MarketDetail() {
               <div ref={stmtChartWrapperRef} style={{ position: 'relative', height: 180 }}>
                 <div style={{ pointerEvents: chartReady ? 'auto' : 'none', height: 180 }}>
                   <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={formatHistory(stmtPriceHistory, market.outcomes)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, formatHistory(stmtPriceHistory, market.outcomes))} minTickGap={40} />
+                    <LineChart data={stmtHistory} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} tickFormatter={(ms) => formatChartTime(ms, stmtHistory)} minTickGap={40} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                       {chartReady && <Tooltip labelFormatter={(ms) => new Date(ms).toLocaleString()} formatter={(v) => `${v}%`} />}
                       <Legend iconSize={10} wrapperStyle={{ fontSize: '0.8rem' }} />
                       {market.outcomes.map((o, i) => (
-                        <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} />
+                          <Line key={o} type="monotone" dataKey={o} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} isAnimationActive={stmtHistory.length > 1} animationDuration={500} />
                       ))}
                     </LineChart>
                   </ResponsiveContainer>
