@@ -99,6 +99,7 @@ export default function MarketDetail() {
   const [stmtTradeError, setStmtTradeError] = useState('');
   const [stmtTradeSuccess, setStmtTradeSuccess] = useState('');
   const [stmtTrading, setStmtTrading] = useState(false);
+  const [positionVersion, setPositionVersion] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'market';
   function setActiveTab(tab) {
@@ -207,6 +208,7 @@ export default function MarketDetail() {
       setTradeSuccess(`Trade successful! Net cost: ${res.data.net_cost.toFixed(4)}`);
       await fetchData();
       await refreshUser();
+      setPositionVersion(v => v + 1);
     } catch (err) {
       setTradeError(err.response?.data?.error || 'Trade failed');
     } finally {
@@ -245,6 +247,7 @@ export default function MarketDetail() {
       setStmtTradeSuccess(`Trade successful! Net cost: ${res.data.net_cost.toFixed(4)}`);
       await fetchData();
       await refreshUser();
+      setPositionVersion(v => v + 1);
     } catch (err) {
       setStmtTradeError(err.response?.data?.error || 'Trade failed');
     } finally {
@@ -384,7 +387,7 @@ export default function MarketDetail() {
         )}
 
         {positions.length > 0 && (
-          <div style={styles.section}>
+          <div key={positionVersion} style={styles.section}>
             <h2 style={styles.h2}>Positions</h2>
             <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
@@ -524,7 +527,7 @@ export default function MarketDetail() {
             {statement_positions && statement_positions.length > 0 && (() => {
               const sp = getLocalPrices(statement_market.maker_quantities, statement_market.probabilities, statement_market.liquidity_beta);
               return (
-                <div style={{ marginTop: '1.25rem' }}>
+                <div key={positionVersion} style={{ marginTop: '1.25rem' }}>
                   <h3 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>Statement Positions</h3>
                   <div style={{ overflowX: 'auto' }}>
                   <table style={styles.table}>

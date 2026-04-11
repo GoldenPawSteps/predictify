@@ -145,12 +145,6 @@ router.post('/', authMiddleware, async (req, res) => {
     );
     const market = marketResult.rows[0];
 
-    // Initialize maker position (zero quantities)
-    await client.query(
-      `INSERT INTO positions (market_id, user_id, quantities) VALUES ($1, $2, $3)`,
-      [market.id, req.user.id, makerQuantities]
-    );
-
     // Ledger entry
     await client.query(
       `INSERT INTO ledger (user_id, amount, description, reference_id, reference_type) VALUES ($1, $2, $3, $4, $5)`,
