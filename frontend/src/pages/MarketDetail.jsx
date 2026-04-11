@@ -301,14 +301,12 @@ export default function MarketDetail() {
           <span style={{ ...styles.backLink, cursor: 'pointer' }} onClick={() => navigate(-1)}>← Back</span>
         </div>
 
-        {isExpired && (
-          <div style={styles.tabBar}>
-            <button style={styles.tab(activeTab === 'market')} onClick={() => setActiveTab('market')}>Market</button>
-            <button style={styles.tab(activeTab === 'statement')} onClick={() => setActiveTab('statement')}>Statement</button>
-          </div>
-        )}
+        <div style={styles.tabBar}>
+          <button style={styles.tab(activeTab === 'market')} onClick={() => setActiveTab('market')}>Market</button>
+          <button style={styles.tab(activeTab === 'statement')} onClick={() => setActiveTab('statement')}>Statement</button>
+        </div>
 
-        {(!isExpired || activeTab === 'market') && (<>
+        {(activeTab === 'market') && (<>
 
         <div style={styles.section}>
           {(() => { const exp = isExpired && market.status === 'active'; return <div style={{ ...styles.badge, ...(exp ? expiredBadge : statusBadge(market.status)) }}>{exp ? 'expired' : market.status.replace(/_/g, ' ')}</div>; })()}
@@ -416,6 +414,14 @@ export default function MarketDetail() {
         )}
 
         </>)}
+
+        {!isExpired && activeTab === 'statement' && (
+          <div style={styles.section}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: 0 }}>
+              This market is still active. The statement tab will be available once the market expires.
+            </p>
+          </div>
+        )}
 
         {isExpired && activeTab === 'statement' && (<>
 
