@@ -174,8 +174,8 @@ export default function Portfolio() {
     });
 
   const allOpenPositionRows = [
-    ...positions.filter(p => p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'market', _sortKey: p.updated_at, _link: `/markets/${p.market_id}` })),
-    ...stmtPositions.filter(p => p.quantities.some(q => q !== 0)).map(p => ({ ...p, _type: 'statement', _sortKey: p.updated_at, _link: `/markets/${p.original_market_id}` })),
+    ...positions.map(p => ({ ...p, _type: 'market', _sortKey: p.updated_at, _link: `/markets/${p.market_id}` })),
+    ...stmtPositions.map(p => ({ ...p, _type: 'statement', _sortKey: p.updated_at, _link: `/markets/${p.original_market_id}` })),
   ];
 
   const openPositionRows = allOpenPositionRows
