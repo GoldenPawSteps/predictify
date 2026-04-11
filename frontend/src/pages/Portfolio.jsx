@@ -215,16 +215,16 @@ export default function Portfolio() {
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Status:</span>
                   {[[null,'All'],['active','Active'],['expired','Expired'],['pending_resolution','Pending'],['resolved','Resolved']].map(([k,l]) => <button key={k??'all'} style={styles.pill(mktStatus===k,'#1a1a2e')} onClick={() => setParam('mStatus', mktStatus===k?null:k, null)}>{l}</button>)}
                 </div>
-                <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
+                <div style={{ overflowX: 'auto' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Question</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Type</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Status</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>L Cost</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Vol</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Ends</th>
+                      <th style={styles.th}>Question</th>
+                      <th style={styles.th}>Type</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>L Cost</th>
+                      <th style={styles.th}>Vol</th>
+                      <th style={styles.th}>Ends</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -276,14 +276,14 @@ export default function Portfolio() {
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Status:</span>
                   {[[null,'All'],['active','Active'],['expired','Expired'],['pending_resolution','Pending']].map(([k,l]) => <button key={k??'all'} style={styles.pill(posStatus===k,'#1a1a2e')} onClick={() => setParam('pStatus', posStatus===k?null:k, null)}>{l}</button>)}
                 </div>
-                <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
+                <div style={{ overflowX: 'auto' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Market</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Type</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Status</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Quantities</th>
+                      <th style={styles.th}>Market</th>
+                      <th style={styles.th}>Type</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Quantities</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -322,13 +322,13 @@ export default function Portfolio() {
                   <span style={{ ...styles.ctrlLabel, marginLeft: '0.5rem' }}>Direction:</span>
                   {[[null,'All'],['credit','Credits'],['debit','Debits']].map(([k,l]) => <button key={k??'all'} style={styles.pill(ledgerDir===k,'#059669')} onClick={() => setParam('lDir', ledgerDir===k?null:k, null)}>{l}</button>)}
                 </div>
-                <div style={{ overflowX: 'auto', maxHeight: '300px', overflowY: 'auto' }}>
+                <div style={{ overflowX: 'auto' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Date</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Description</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, background: '#fff' }}>Amount</th>
+                      <th style={styles.th}>Date</th>
+                      <th style={styles.th}>Description</th>
+                      <th style={styles.th}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
