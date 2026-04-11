@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useDebouncedCallback } from '../hooks/useDebounce';
 
 const styles = {
   container: { minHeight: '100vh', background: 'var(--page-bg)' },
@@ -46,24 +47,32 @@ export default function Markets() {
   const statusFilter = searchParams.get('status') || null;
   const creatorFilter = searchParams.get('creator') || null;
   const searchQuery = searchParams.get('q') || '';
+  const [searchInput, setSearchInput] = useState(searchQuery);
   const { user, logout, refreshUser } = useAuth();
   const { dark, mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   function setActiveTag(tag) {
-    setSearchParams(p => { const n = new URLSearchParams(p); tag ? n.set('tag', tag) : n.delete('tag'); return n; }, { replace: true });
+    setSearchParams(p => { const n = new URLSearchParams(p); tag ? n.set('tag', tag) : n.delete('tag'); return n; }, { replace: true, preventScrollReset: true });
   }
   function setSortKey(key) {
-    setSearchParams(p => { const n = new URLSearchParams(p); key === 'newest' ? n.delete('sort') : n.set('sort', key); return n; }, { replace: true });
+    setSearchParams(p => { const n = new URLSearchParams(p); key === 'newest' ? n.delete('sort') : n.set('sort', key); return n; }, { replace: true, preventScrollReset: true });
   }
   function setStatusFilter(s) {
-    setSearchParams(p => { const n = new URLSearchParams(p); s ? n.set('status', s) : n.delete('status'); return n; }, { replace: true });
+    setSearchParams(p => { const n = new URLSearchParams(p); s ? n.set('status', s) : n.delete('status'); return n; }, { replace: true, preventScrollReset: true });
   }
   function setCreatorFilter(c) {
-    setSearchParams(p => { const n = new URLSearchParams(p); c ? n.set('creator', c) : n.delete('creator'); return n; }, { replace: true });
+    setSearchParams(p => { const n = new URLSearchParams(p); c ? n.set('creator', c) : n.delete('creator'); return n; }, { replace: true, preventScrollReset: true });
   }
   function setSearchQuery(q) {
-    setSearchParams(p => { const n = new URLSearchParams(p); q ? n.set('q', q) : n.delete('q'); return n; }, { replace: true });
+    setSearchParams(p => { const n = new URLSearchParams(p); q ? n.set('q', q) : n.delete('q'); return n; }, { replace: true, preventScrollReset: true });
+  }
+  const debouncedSetSearchQuery = useDebouncedCallback(setSearchQuery);
+
+  function handleSearchChange(e) {
+    const v = e.target.value;
+    setSearchInput(v);
+    debouncedSetSearchQuery(v);
   }
 
   useEffect(() => {
@@ -122,8 +131,8 @@ export default function Markets() {
             <input
               type="search"
               placeholder="Search markets..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={handleSearchChange}
               style={{ width: '100%', padding: '0.55rem 0.9rem', border: '1px solid var(--border-input2)', borderRadius: '6px', fontSize: '16px', boxSizing: 'border-box', outline: 'none', background: 'var(--surface)', color: 'var(--text-primary)' }}
             />
             {/* Sort + Status + Creator row */}
@@ -172,6 +181,10 @@ export default function Markets() {
           <div style={styles.empty}>
             <p>No markets yet.</p>
             <Link to="/markets/new" style={styles.createBtn}>Create the first market</Link>
+          </div>
+        ) : filteredMarkets.length === 0 ? (
+          <div style={styles.empty}>
+            <p>No markets match your search or filters.</p>
           </div>
         ) : (
           <div style={styles.grid}>

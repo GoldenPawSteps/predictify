@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useDebouncedCallback } from '../hooks/useDebounce';
 
 const styles = {
   container: { minHeight: '100vh', background: 'var(--page-bg)' },
@@ -27,6 +28,11 @@ const styles = {
   ledgerPos: { color: '#166534' },
   ledgerNeg: { color: '#b91c1c' },
   badge: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' },
+  statCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem 1.25rem' },
+  statLabel: { fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' },
+  statValue: { fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 },
+  statSub: { fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.2rem' },
   ctrlRow: { display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' },
   ctrlLabel: { fontSize: '0.75rem', color: 'var(--text-faint2)', fontWeight: 600 },
   pill: (active, color) => ({ background: active ? color : 'var(--pill-bg)', color: active ? '#fff' : 'var(--pill-text)', border: '1px solid ' + (active ? color : 'var(--pill-border)'), borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }),
@@ -99,13 +105,26 @@ export default function Portfolio() {
   const ledgerSort = searchParams.get('lSort') || 'newest';
   const activeTab = searchParams.get('tab') || 'markets';
 
+  // --- Local search input states (debounced to URL) ---
+  const [mktSearchInput, setMktSearchInput] = useState(mktSearch);
+  const [posSearchInput, setPosSearchInput] = useState(posSearch);
+  const [ledgerSearchInput, setLedgerSearchInput] = useState(ledgerSearch);
+
   function setParam(key, value, defaultValue) {
     setSearchParams(p => {
       const n = new URLSearchParams(p);
       if (value == null || value === defaultValue) n.delete(key); else n.set(key, value);
       return n;
-    }, { replace: true });
+    }, { replace: true, preventScrollReset: true });
   }
+
+  const debouncedSetMktSearch = useDebouncedCallback(v => setParam('mQ', v || null, null));
+  const debouncedSetPosSearch = useDebouncedCallback(v => setParam('pQ', v || null, null));
+  const debouncedSetLedgerSearch = useDebouncedCallback(v => setParam('lQ', v || null, null));
+
+  function handleMktSearchChange(e) { const v = e.target.value; setMktSearchInput(v); debouncedSetMktSearch(v); }
+  function handlePosSearchChange(e) { const v = e.target.value; setPosSearchInput(v); debouncedSetPosSearch(v); }
+  function handleLedgerSearchChange(e) { const v = e.target.value; setLedgerSearchInput(v); debouncedSetLedgerSearch(v); }
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -170,6 +189,14 @@ export default function Portfolio() {
       : new Date(b.created_at) - new Date(a.created_at)
     );
 
+  // --- Computed stats ---
+  const pnl = ledger.reduce((sum, e) => sum + e.amount, 0);
+  const tradeCount = ledger.filter(e => e.reference_type === 'trade' || e.reference_type === 'statement_trade').length;
+  const settlementEarned = ledger.filter(e => e.reference_type === 'settlement').reduce((sum, e) => sum + e.amount, 0);
+  const totalVolumeCreated = allMyMarketRows.reduce((sum, m) => sum + (m.volume || 0), 0);
+  const marketsCreated = allMyMarketRows.length;
+  const openPositionsCount = allOpenPositionRows.length;
+
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>Loading...</div>;
 
   return (
@@ -192,6 +219,22 @@ export default function Portfolio() {
           </div>
         </div>
 
+        <div style={styles.statsGrid}>
+          {[
+            { label: 'Net P&L', value: (pnl >= 0 ? '+' : '') + pnl.toFixed(2), color: pnl >= 0 ? '#16a34a' : '#dc2626', sub: 'all-time' },
+            { label: 'Trades Made', value: tradeCount, color: null, sub: null },
+            { label: 'Markets Created', value: marketsCreated, color: null, sub: totalVolumeCreated > 0 ? `${totalVolumeCreated.toFixed(2)} vol` : null },
+            { label: 'Open Positions', value: openPositionsCount, color: null, sub: null },
+            { label: 'Settlements', value: (settlementEarned >= 0 ? '+' : '') + settlementEarned.toFixed(2), color: settlementEarned >= 0 ? '#16a34a' : '#dc2626', sub: 'earned' },
+          ].map(({ label, value, color, sub }) => (
+            <div key={label} style={styles.statCard}>
+              <div style={styles.statLabel}>{label}</div>
+              <div style={{ ...styles.statValue, ...(color ? { color } : {}) }}>{value}</div>
+              {sub && <div style={styles.statSub}>{sub}</div>}
+            </div>
+          ))}
+        </div>
+
         <div style={styles.tabBar}>
           {[['markets','My Markets'],['positions','Open Positions'],['ledger','Transaction History']].map(([k,l]) => (
             <button key={k} style={styles.tab(activeTab===k)} onClick={() => setParam('tab', k, 'markets')}>{l}</button>
@@ -204,7 +247,7 @@ export default function Portfolio() {
               <div style={styles.empty}>You haven't created any markets yet. <Link to="/markets/new">Create one!</Link></div>
             ) : (
               <>
-                <input type="search" placeholder="Search..." value={mktSearch} onChange={e => setParam('mQ', e.target.value || null, null)} style={styles.searchInput} />
+                <input type="search" placeholder="Search..." value={mktSearchInput} onChange={handleMktSearchChange} style={styles.searchInput} />
                 <div style={styles.ctrlRow}>
                   <span style={styles.ctrlLabel}>Sort:</span>
                   {[['newest','Newest'],['oldest','Oldest'],['ending_soon','Ending Soon'],['volume','Volume']].map(([k,l]) => <button key={k} style={styles.pill(mktSort===k,'#1a1a2e')} onClick={() => setParam('mSort', k, 'newest')}>{l}</button>)}
@@ -265,7 +308,7 @@ export default function Portfolio() {
               </div>
             ) : (
               <>
-                <input type="search" placeholder="Search..." value={posSearch} onChange={e => setParam('pQ', e.target.value || null, null)} style={styles.searchInput} />
+                <input type="search" placeholder="Search..." value={posSearchInput} onChange={handlePosSearchChange} style={styles.searchInput} />
                 <div style={styles.ctrlRow}>
                   <span style={styles.ctrlLabel}>Sort:</span>
                   {[['recent','Recent'],['oldest','Oldest'],['ending_soon','Ending Soon']].map(([k,l]) => <button key={k} style={styles.pill(posSort===k,'#1a1a2e')} onClick={() => setParam('pSort', k, 'recent')}>{l}</button>)}
@@ -315,7 +358,7 @@ export default function Portfolio() {
               <div style={styles.empty}>No transactions yet.</div>
             ) : (
               <>
-                <input type="search" placeholder="Search..." value={ledgerSearch} onChange={e => setParam('lQ', e.target.value || null, null)} style={styles.searchInput} />
+                <input type="search" placeholder="Search..." value={ledgerSearchInput} onChange={handleLedgerSearchChange} style={styles.searchInput} />
                 <div style={styles.ctrlRow}>
                   <span style={styles.ctrlLabel}>Sort:</span>
                   {[['newest','Newest'],['oldest','Oldest']].map(([k,l]) => <button key={k} style={styles.pill(ledgerSort===k,'#1a1a2e')} onClick={() => setParam('lSort', k, 'newest')}>{l}</button>)}

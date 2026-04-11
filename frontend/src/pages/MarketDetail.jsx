@@ -102,7 +102,7 @@ export default function MarketDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'market';
   function setActiveTab(tab) {
-    setSearchParams(p => { const n = new URLSearchParams(p); tab === 'market' ? n.delete('tab') : n.set('tab', tab); return n; }, { replace: true });
+    setSearchParams(p => { const n = new URLSearchParams(p); tab === 'market' ? n.delete('tab') : n.set('tab', tab); return n; }, { replace: true, preventScrollReset: true });
   }
   const [chartReady, setChartReady] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);

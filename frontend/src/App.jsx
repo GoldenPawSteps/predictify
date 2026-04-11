@@ -17,6 +17,7 @@ function ScrollRestoration() {
   const keyRef = useRef(key);
 
   useEffect(() => {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const handleScroll = () => { scrollPositions.set(keyRef.current, window.scrollY); };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
