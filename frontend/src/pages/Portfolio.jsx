@@ -51,6 +51,19 @@ function displayStatus(status, endTime) {
   return status === 'active' && new Date(endTime) <= new Date() ? 'expired' : status;
 }
 
+function getPrices(makerQty, probs, beta) {
+  const logTerms = makerQty.map((q, i) => Math.log(probs[i]) + q / beta);
+  const maxLog = Math.max(...logTerms);
+  const expTerms = logTerms.map(v => Math.exp(v - maxLog));
+  const sumExp = expTerms.reduce((a, b) => a + b, 0);
+  return expTerms.map(e => e / sumExp);
+}
+
+function calcCurrentValue(p) {
+  const prices = getPrices(p.maker_quantities, p.probabilities, p.liquidity_beta);
+  return p.quantities.reduce((sum, q, i) => sum + q * prices[i], 0);
+}
+
 function calcPnl(p) {
   return Number(p.net_spent);
 }
@@ -331,14 +344,16 @@ export default function Portfolio() {
                       <th style={styles.th}>Type</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Quantities</th>
+                      <th style={styles.th}>Current</th>
                       <th style={styles.th}>Net P&amp;L</th>
                     </tr>
                   </thead>
                   <tbody>
                     {openPositionRows.length === 0 ? (
-                      <tr><td colSpan={5} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No results</td></tr>
+                      <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No results</td></tr>
                     ) : openPositionRows.map(p => {
                       const pnl = calcPnl(p);
+                      const current = calcCurrentValue(p);
                       return (
                         <tr key={p._type === 'market' ? p.market_id : p.statement_market_id}>
                           <td style={styles.td}><Link to={p._link} style={styles.posLink}>{p.question}</Link></td>
@@ -348,6 +363,9 @@ export default function Portfolio() {
                             {p.outcomes.map((o, i) => (
                               <div key={i} style={{ fontSize: '0.85rem' }}>{o}: {Number(p.quantities[i]).toFixed(2)}</div>
                             ))}
+                          </td>
+                          <td style={{ ...styles.td, fontWeight: 600 }}>
+                            {current.toFixed(4)}
                           </td>
                           <td style={{ ...styles.td, fontWeight: 600, color: pnl >= 0 ? '#16a34a' : '#dc2626' }}>
                             {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)}
