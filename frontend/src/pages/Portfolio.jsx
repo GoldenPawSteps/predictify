@@ -68,6 +68,10 @@ function calcPnl(p) {
   return Number(p.net_spent);
 }
 
+function calcProjectedPnl(p) {
+  return Number(p.net_spent) + calcCurrentValue(p) - Math.min(...p.quantities);
+}
+
 export default function Portfolio() {
   const [markets, setMarkets] = useState([]);
   const [positions, setPositions] = useState([]);
@@ -346,14 +350,16 @@ export default function Portfolio() {
                       <th style={styles.th}>Quantities</th>
                       <th style={styles.th}>Current</th>
                       <th style={styles.th}>Net P&amp;L</th>
+                      <th style={styles.th}>Projected P&amp;L</th>
                     </tr>
                   </thead>
                   <tbody>
                     {openPositionRows.length === 0 ? (
-                      <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No results</td></tr>
+                      <tr><td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No results</td></tr>
                     ) : openPositionRows.map(p => {
                       const pnl = calcPnl(p);
                       const current = calcCurrentValue(p);
+                      const projectedPnl = calcProjectedPnl(p);
                       return (
                         <tr key={p._type === 'market' ? p.market_id : p.statement_market_id}>
                           <td style={styles.td}><Link to={p._link} style={styles.posLink}>{p.question}</Link></td>
@@ -369,6 +375,9 @@ export default function Portfolio() {
                           </td>
                           <td style={{ ...styles.td, fontWeight: 600, color: pnl >= 0 ? '#16a34a' : '#dc2626' }}>
                             {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)}
+                          </td>
+                          <td style={{ ...styles.td, fontWeight: 600, color: projectedPnl >= 0 ? '#16a34a' : '#dc2626' }}>
+                            {projectedPnl >= 0 ? '+' : ''}{projectedPnl.toFixed(4)}
                           </td>
                         </tr>
                       );
